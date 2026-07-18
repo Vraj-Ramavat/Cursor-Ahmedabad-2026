@@ -181,9 +181,10 @@ def answer_intake(
     elif nq.complete:
         transcript.append({
             "role": "assistant",
-            "text": "Thank you \u2014 that's everything I need. You're in the queue now; "
-                    "you can see your live position here, and you can upload any "
-                    "prescriptions or reports while you wait.",
+            "text": "That's everything I needed \u2014 thank you for walking me through it. "
+                    "You're checked in and in the queue now. While you wait you can upload "
+                    "any prescriptions or reports, and tell reception if anything suddenly "
+                    "feels worse.",
             "at": _now_iso(),
         })
     session.transcript = transcript

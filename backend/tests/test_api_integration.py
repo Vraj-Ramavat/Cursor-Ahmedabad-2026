@@ -50,7 +50,8 @@ def test_full_chest_pain_intake_escalates_to_red(client):
     briefing = client.get(f"/api/intake/{sid}/briefing").json()
     assert briefing["severity"] == "red"
     # No LLM key in test env -> paraphrase degrades gracefully.
-    assert briefing["paraphrase_status"] in ("pending — retry", "ready")
+    assert briefing["paraphrase_status"] in ("pending — retry", "ready", "local_template")
+    assert briefing.get("paraphrased_prose")
 
 
 def test_queue_status_serves_without_redis(client):

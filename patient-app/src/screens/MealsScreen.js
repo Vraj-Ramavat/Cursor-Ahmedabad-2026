@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getMealPlan, setToken, updateHealth } from "../api";
+import { getCurrentMealPlan, getMealPlan, setToken, updateHealth } from "../api";
 import { colors } from "../theme";
 
-/** Same questionnaire as Eatvisor OnboardingScreen — deterministic, no LLM. */
+/** Eatvisor onboarding steps — progress only (cannot skip ahead). */
 const STEPS = ["Body", "Goal", "Health", "Diet", "Allergies"];
 
 const GOALS = [
@@ -59,6 +59,23 @@ const ACTIVITIES = [
   { id: "extra_active", label: "Extra Active" },
 ];
 
+const SLOT_ORDER = ["breakfast", "morning_snack", "lunch", "evening_snack", "dinner"];
+const SLOT_TIMES = {
+  breakfast: "8:00 – 9:00 AM",
+  morning_snack: "11:00 AM",
+  lunch: "12:30 – 1:30 PM",
+  evening_snack: "4:30 – 5:00 PM",
+  dinner: "7:30 – 8:30 PM",
+};
+const SLOT_EMOJI = {
+  breakfast: "🌅",
+  morning_snack: "🍎",
+  lunch: "🍛",
+  evening_snack: "🍵",
+  dinner: "🌙",
+};
+const FILTERS = ["All", "Breakfast", "Lunch", "Dinner", "Snacks", "Avoid"];
+
 function mapCondition(c) {
   const m = {
     "Diabetes / Pre-diabetic": "diabetes",
@@ -77,6 +94,7 @@ export default function MealsScreen({ account, onAccountUpdate, sessionId, setAc
   const updateAccount = onAccountUpdate || setAccount;
   const activeSession = sessionId || session;
   const [step, setStep] = useState(0);
+  const [maxStep, setMaxStep] = useState(0);
   const [weight, setWeight] = useState(String(account?.weight_kg || ""));
   const [height, setHeight] = useState(String(account?.height_cm || ""));
   const [activity, setActivity] = useState(account?.activity_level || "");
@@ -87,7 +105,43 @@ export default function MealsScreen({ account, onAccountUpdate, sessionId, setAc
   const [dislikes, setDislikes] = useState("");
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [filter, setFilter] = useState("All");
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const saved = await getCurrentMealPlan();
+        if (!cancelled && saved?.days?.length) {
+          setPlan(saved);
+          setSelectedDay(1);
+        }
+      } catch {
+        /* no saved plan yet */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.patient_id]);
+
+  function goStep(i) {
+    // Progress indicator: only revisit unlocked steps (no skipping ahead).
+    if (i <= maxStep) setStep(i);
+  }
+
+  function advance() {
+    const next = Math.min(step + 1, STEPS.length - 1);
+    setStep(next);
+    setMaxStep((m) => Math.max(m, next));
+  }
 
   function toggle(list, setList, item) {
     if (item === "None") return setList(["None"]);
@@ -128,6 +182,8 @@ export default function MealsScreen({ account, onAccountUpdate, sessionId, setAc
       updateAccount?.(updated);
       const p = await getMealPlan(15, activeSession);
       setPlan(p);
+      setSelectedDay(1);
+      setFilter("All");
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -135,175 +191,301 @@ export default function MealsScreen({ account, onAccountUpdate, sessionId, setAc
     }
   }
 
+  const day = useMemo(() => {
+    if (!plan?.days?.length) return null;
+    return plan.days.find((d) => (d.day || d.day_number) === selectedDay) || plan.days[0];
+  }, [plan, selectedDay]);
+
+  const meals = useMemo(() => {
+    if (!day?.meals) return [];
+    const list = SLOT_ORDER.map((slot) => day.meals[slot]).filter(Boolean);
+    if (filter === "All") return list;
+    const map = {
+      Breakfast: ["breakfast"],
+      Lunch: ["lunch"],
+      Dinner: ["dinner"],
+      Snacks: ["morning_snack", "evening_snack", "snack"],
+    };
+    const slots = map[filter] || [];
+    return list.filter((m) => slots.includes(m.meal_slot));
+  }, [day, filter]);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.centerText}>Loading your meal plan…</Text>
+      </View>
+    );
+  }
+
+  if (plan?.days?.length) {
+    const totals = day?.totals || {};
+    return (
+      <ScrollView style={styles.page} contentContainerStyle={{ paddingBottom: 110 }}>
+        <View style={styles.hero}>
+          <Text style={styles.heroOver}>15-Day Plan</Text>
+          <Text style={styles.heroTitle}>Day {selectedDay} of {plan.days.length}</Text>
+          <Text style={styles.heroSub}>
+            ~{plan.daily_calorie_target} kcal/day · {plan.diet}
+            {plan.recovery_mode ? " · recovery mode" : ""}
+          </Text>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusBadgeText}>Active · saved to your profile</Text>
+          </View>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRow}>
+          {plan.days.map((d) => {
+            const n = d.day || d.day_number;
+            const on = n === selectedDay;
+            return (
+              <TouchableOpacity key={n} onPress={() => setSelectedDay(n)} style={[styles.dayChip, on && styles.dayChipOn]}>
+                <Text style={[styles.dayNum, on && styles.dayNumOn]}>{n}</Text>
+                <Text style={[styles.dayLabel, on && styles.dayLabelOn]}>{n === 1 ? "Today" : `Day ${n}`}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.macroCard}>
+          <View style={styles.macroHeader}>
+            <Text style={styles.macroHeaderLabel}>Daily macros</Text>
+            <Text style={styles.macroHeaderVal}>{totals.calories || 0} kcal</Text>
+          </View>
+          <View style={styles.macroRow}>
+            <Macro label="Protein" value={`${totals.protein || 0}g`} tint="#E8F0FE" color={colors.primary} />
+            <Macro label="Carbs" value={`${totals.carbs || 0}g`} tint="#FEF7E0" color="#B06000" />
+            <Macro label="Fat" value={`${totals.fat || 0}g`} tint="#FCE8E6" color={colors.red} />
+            <Macro label="Fiber" value={`${totals.fiber || 0}g`} tint="#E6F4EA" color={colors.green} />
+          </View>
+        </View>
+
+        {day?.morning_drink && (
+          <View style={styles.drinkCard}>
+            <Text style={styles.drinkOver}>Morning drink</Text>
+            <Text style={styles.mealTitle}>{day.morning_drink.name}</Text>
+            <Text style={styles.meta}>{day.morning_drink.benefits}</Text>
+          </View>
+        )}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[styles.filterChip, filter === f && styles.filterChipOn]}>
+              <Text style={[styles.filterText, filter === f && styles.filterTextOn]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {filter === "Avoid" ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            {Object.keys(plan.foods_to_avoid || {}).length === 0 ? (
+              <Text style={styles.meta}>No specific avoid list for your profile.</Text>
+            ) : (
+              Object.entries(plan.foods_to_avoid).map(([k, items]) => (
+                <View key={k} style={styles.card}>
+                  <Text style={styles.cardTitle}>Avoid — {k}</Text>
+                  {items.map((it, i) => (
+                    <Text key={i} style={styles.meta}>• {it.food}: {it.reason}</Text>
+                  ))}
+                </View>
+              ))
+            )}
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 16 }}>
+            {meals.map((m, i) => {
+              const key = `${selectedDay}-${m.meal_slot}-${i}`;
+              const open = expanded === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.mealCard}
+                  activeOpacity={0.8}
+                  onPress={() => setExpanded(open ? null : key)}
+                >
+                  <View style={styles.mealIcon}>
+                    <Text style={{ fontSize: 22 }}>{SLOT_EMOJI[m.meal_slot] || "🍽️"}</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={styles.mealTop}>
+                      <Text style={styles.mealOver}>{m.slot || m.meal_slot}</Text>
+                      <Text style={styles.mealTime}>{SLOT_TIMES[m.meal_slot] || ""}</Text>
+                    </View>
+                    <Text style={styles.mealTitle} numberOfLines={1}>{m.name}</Text>
+                    <Text style={styles.mealMetaLine}>
+                      {m.calories} kcal · P {m.protein}g · C {m.carbs || "—"}g · F {m.fat || "—"}g
+                    </Text>
+                    {m.region ? <Text style={styles.regionChip}>📍 {m.region}{m.gi_score ? ` · GI ${m.gi_score}` : ""}</Text> : null}
+                    {open && (
+                      <View style={styles.recipeBox}>
+                        <Text style={styles.recipeLabel}>Ingredients</Text>
+                        <Text style={styles.meta}>{(m.recipe?.ingredients || []).join(", ") || "—"}</Text>
+                        <Text style={[styles.recipeLabel, { marginTop: 8 }]}>How to make</Text>
+                        {(m.recipe?.steps || []).map((s, si) => (
+                          <Text key={si} style={styles.meta}>{si + 1}. {s}</Text>
+                        ))}
+                        {(m.videos || []).slice(0, 1).map((v) => (
+                          <Text
+                            key={v.videoId || v.title}
+                            style={styles.link}
+                            onPress={() => {
+                              const url = v.url || `https://www.youtube.com/watch?v=${v.videoId}`;
+                              if (typeof window !== "undefined") window.open(url, "_blank");
+                            }}
+                          >
+                            ▶ {v.title || "Recipe video"}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.chev}>{open ? "▾" : "›"}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {(plan.video_recommendations || []).length > 0 && filter === "All" && (
+          <View style={[styles.card, { marginHorizontal: 16 }]}>
+            <Text style={styles.cardTitle}>Recommended videos</Text>
+            {plan.video_recommendations.map((v) => (
+              <TouchableOpacity
+                key={v.videoId || v.url}
+                onPress={() => {
+                  const url = v.url || `https://www.youtube.com/watch?v=${v.videoId}`;
+                  if (typeof window !== "undefined") window.open(url, "_blank");
+                }}
+              >
+                <Text style={styles.mealTitle}>{v.title}</Text>
+                <Text style={styles.link}>Watch on YouTube →</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.regenBtn}
+          onPress={() => {
+            setPlan(null);
+            setStep(0);
+            setMaxStep(0);
+          }}
+        >
+          <Text style={styles.regenText}>Edit questionnaire & regenerate</Text>
+        </TouchableOpacity>
+        <Text style={styles.disclaimer}>{plan.disclaimer}</Text>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.page} contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
       <Text style={styles.title}>Meal plan</Text>
       <Text style={styles.sub}>
-        Eatvisor-style plan: 15 days × meals + recipes + cooking video recommendations. Same questionnaire as your app.
+        Same Eatvisor questionnaire — then a 15-day plan with day picker, macros, recipes & videos.
       </Text>
 
       <View style={styles.stepRow}>
-        {STEPS.map((s, i) => (
-          <TouchableOpacity key={s} onPress={() => setStep(i)} style={[styles.stepChip, step === i && styles.stepOn]}>
-            <Text style={[styles.stepText, step === i && styles.stepTextOn]}>{i + 1}. {s}</Text>
-          </TouchableOpacity>
-        ))}
+        {STEPS.map((s, i) => {
+          const unlocked = i <= maxStep;
+          const on = step === i;
+          return (
+            <TouchableOpacity
+              key={s}
+              disabled={!unlocked}
+              onPress={() => goStep(i)}
+              style={[styles.stepChip, on && styles.stepOn, !unlocked && styles.stepLocked]}
+            >
+              <Text style={[styles.stepText, on && styles.stepTextOn, !unlocked && styles.stepTextLocked]}>
+                {i + 1}. {s}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {!plan && (
-        <View style={styles.card}>
-          {step === 0 && (
-            <>
-              <Text style={styles.label}>Weight (kg)</Text>
-              <TextInput style={styles.input} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor={colors.muted} />
-              <Text style={styles.label}>Height (cm)</Text>
-              <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholderTextColor={colors.muted} />
-              <Text style={styles.label}>Activity level</Text>
-              <View style={styles.chips}>
-                {ACTIVITIES.map((a) => (
-                  <Chip key={a.id} label={a.label} on={activity === a.id} onPress={() => setActivity(a.id)} />
-                ))}
-              </View>
-            </>
-          )}
-          {step === 1 && (
+      <View style={styles.card}>
+        {step === 0 && (
+          <>
+            <Text style={styles.label}>Weight (kg)</Text>
+            <TextInput style={styles.input} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor={colors.muted} />
+            <Text style={styles.label}>Height (cm)</Text>
+            <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholderTextColor={colors.muted} />
+            <Text style={styles.label}>Activity level</Text>
             <View style={styles.chips}>
-              {GOALS.map((g) => (
-                <Chip key={g.id} label={g.label} on={goal === g.id} onPress={() => setGoal(g.id)} />
+              {ACTIVITIES.map((a) => (
+                <Chip key={a.id} label={a.label} on={activity === a.id} onPress={() => setActivity(a.id)} />
               ))}
             </View>
-          )}
-          {step === 2 && (
-            <View style={styles.chips}>
-              {CONDITIONS.map((c) => (
-                <Chip key={c} label={c} on={conditions.includes(c)} onPress={() => toggle(conditions, setConditions, c)} />
-              ))}
-            </View>
-          )}
-          {step === 3 && (
-            <View style={styles.chips}>
-              {DIETS.map((d) => (
-                <Chip key={d.id} label={d.label} on={diet === d.id} onPress={() => setDiet(d.id)} />
-              ))}
-            </View>
-          )}
-          {step === 4 && (
-            <>
-              <View style={styles.chips}>
-                {ALLERGIES.map((a) => (
-                  <Chip key={a.id} label={a.label} on={allergies.includes(a.id)} onPress={() => toggleId(allergies, setAllergies, a.id)} />
-                ))}
-              </View>
-              <Text style={styles.label}>Foods you dislike (comma-separated)</Text>
-              <TextInput style={styles.input} value={dislikes} onChangeText={setDislikes} placeholder="e.g. mushroom, bitter gourd" placeholderTextColor={colors.muted} />
-            </>
-          )}
-
-          <View style={styles.navRow}>
-            {step > 0 && (
-              <TouchableOpacity style={styles.btnAlt} onPress={() => setStep(step - 1)}>
-                <Text style={styles.btnAltText}>Back</Text>
-              </TouchableOpacity>
-            )}
-            {step < STEPS.length - 1 ? (
-              <TouchableOpacity
-                style={[styles.btn, !canNext() && styles.btnDisabled]}
-                disabled={!canNext()}
-                onPress={() => setStep(step + 1)}
-              >
-                <Text style={styles.btnText}>Next</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.btn} onPress={generate} disabled={busy}>
-                {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate 15-day plan</Text>}
-              </TouchableOpacity>
-            )}
+          </>
+        )}
+        {step === 1 && (
+          <View style={styles.chips}>
+            {GOALS.map((g) => (
+              <Chip key={g.id} label={g.label} on={goal === g.id} onPress={() => setGoal(g.id)} />
+            ))}
           </View>
-          {!!err && <Text style={styles.err}>{err}</Text>}
-        </View>
-      )}
-
-      {plan && (
-        <>
-          <TouchableOpacity style={styles.btnAlt} onPress={() => setPlan(null)}>
-            <Text style={styles.btnAltText}>Edit questionnaire & regenerate</Text>
-          </TouchableOpacity>
-          <Text style={styles.kcal}>
-            {plan.plan_days || plan.days?.length || 15}-day plan · ~{plan.daily_calorie_target} kcal/day · {plan.diet}
-          </Text>
-          {plan.recovery_mode && <Text style={styles.recover}>Recovery mode — light meals for current visit.</Text>}
-
-          {(plan.video_recommendations || []).length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Recommended videos</Text>
-              {plan.video_recommendations.map((v) => (
-                <View key={v.videoId || v.url} style={styles.mealRow}>
-                  <Text style={styles.mealName}>{v.title}</Text>
-                  <Text style={styles.meta}>{v.channel}</Text>
-                  <Text
-                    style={styles.link}
-                    onPress={() => {
-                      const url = v.url || `https://www.youtube.com/watch?v=${v.videoId}`;
-                      if (typeof window !== "undefined") window.open(url, "_blank");
-                    }}
-                  >
-                    Watch on YouTube →
-                  </Text>
-                </View>
+        )}
+        {step === 2 && (
+          <View style={styles.chips}>
+            {CONDITIONS.map((c) => (
+              <Chip key={c} label={c} on={conditions.includes(c)} onPress={() => toggle(conditions, setConditions, c)} />
+            ))}
+          </View>
+        )}
+        {step === 3 && (
+          <View style={styles.chips}>
+            {DIETS.map((d) => (
+              <Chip key={d.id} label={d.label} on={diet === d.id} onPress={() => setDiet(d.id)} />
+            ))}
+          </View>
+        )}
+        {step === 4 && (
+          <>
+            <View style={styles.chips}>
+              {ALLERGIES.map((a) => (
+                <Chip key={a.id} label={a.label} on={allergies.includes(a.id)} onPress={() => toggleId(allergies, setAllergies, a.id)} />
               ))}
             </View>
+            <Text style={styles.label}>Foods you dislike (comma-separated)</Text>
+            <TextInput style={styles.input} value={dislikes} onChangeText={setDislikes} placeholder="e.g. mushroom, bitter gourd" placeholderTextColor={colors.muted} />
+          </>
+        )}
+
+        <View style={styles.navRow}>
+          {step > 0 && (
+            <TouchableOpacity style={styles.btnAlt} onPress={() => setStep(step - 1)}>
+              <Text style={styles.btnAltText}>Back</Text>
+            </TouchableOpacity>
           )}
-
-          {plan.days.map((d) => (
-            <View key={d.day || d.day_number} style={styles.card}>
-              <Text style={styles.cardTitle}>
-                Day {d.day || d.day_number} · {d.totals?.calories || 0} kcal
-              </Text>
-              {d.morning_drink && (
-                <Text style={styles.meta}>Morning drink: {d.morning_drink.name}</Text>
-              )}
-              {Object.values(d.meals || {}).filter(Boolean).map((m, i) => (
-                <View key={i} style={styles.mealRow}>
-                  <Text style={styles.slot}>{m.slot || m.meal_slot}</Text>
-                  <Text style={styles.mealName}>{m.name}</Text>
-                  <Text style={styles.meta}>{m.calories} kcal · {m.serving_size}</Text>
-                  {m.recipe?.ingredients?.length > 0 && (
-                    <Text style={styles.meta}>
-                      Ingredients: {m.recipe.ingredients.slice(0, 6).join(", ")}
-                      {m.recipe.ingredients.length > 6 ? "…" : ""}
-                    </Text>
-                  )}
-                  {m.recipe?.steps?.length > 0 && (
-                    <Text style={styles.meta}>How: {m.recipe.steps[0]}</Text>
-                  )}
-                  {(m.videos || []).slice(0, 1).map((v) => (
-                    <Text
-                      key={v.videoId || v.title}
-                      style={styles.link}
-                      onPress={() => {
-                        const url = v.url || `https://www.youtube.com/watch?v=${v.videoId}`;
-                        if (typeof window !== "undefined") window.open(url, "_blank");
-                      }}
-                    >
-                      ▶ {v.title || "Recipe video"}
-                    </Text>
-                  ))}
-                </View>
-              ))}
-            </View>
-          ))}
-          {Object.entries(plan.foods_to_avoid || {}).map(([k, items]) => (
-            <View key={k} style={styles.card}>
-              <Text style={styles.cardTitle}>Avoid — {k}</Text>
-              {items.map((it, i) => (
-                <Text key={i} style={styles.meta}>• {it.food}: {it.reason}</Text>
-              ))}
-            </View>
-          ))}
-          <Text style={styles.disclaimer}>{plan.disclaimer}</Text>
-        </>
-      )}
+          {step < STEPS.length - 1 ? (
+            <TouchableOpacity
+              style={[styles.btn, !canNext() && styles.btnDisabled]}
+              disabled={!canNext()}
+              onPress={advance}
+            >
+              <Text style={styles.btnText}>Next</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.btn} onPress={generate} disabled={busy}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate 15-day plan</Text>}
+            </TouchableOpacity>
+          )}
+        </View>
+        {!!err && <Text style={styles.err}>{err}</Text>}
+      </View>
     </ScrollView>
+  );
+}
+
+function Macro({ label, value, tint, color }) {
+  return (
+    <View style={[styles.macroChip, { backgroundColor: tint }]}>
+      <Text style={[styles.macroVal, { color }]}>{value}</Text>
+      <Text style={[styles.macroLabel, { color }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -317,13 +499,114 @@ function Chip({ label, on, onPress }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
+  centerText: { color: colors.muted, marginTop: 10 },
   title: { fontSize: 22, fontWeight: "700", color: colors.text },
   sub: { color: colors.muted, marginTop: 4, marginBottom: 12, lineHeight: 18 },
+  hero: {
+    margin: 16,
+    marginBottom: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    padding: 18,
+  },
+  heroOver: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  heroTitle: { color: "#fff", fontSize: 26, fontWeight: "800", marginTop: 4 },
+  heroSub: { color: "rgba(255,255,255,0.9)", marginTop: 6, fontSize: 13 },
+  statusBadge: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  dayRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 8 },
+  dayChip: {
+    width: 58,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  dayChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  dayNum: { fontWeight: "800", color: colors.text, fontSize: 16 },
+  dayNumOn: { color: colors.primary },
+  dayLabel: { fontSize: 10, color: colors.muted, marginTop: 2 },
+  dayLabelOn: { color: colors.primary, fontWeight: "600" },
+  macroCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+  },
+  macroHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  macroHeaderLabel: { fontWeight: "700", color: colors.text },
+  macroHeaderVal: { fontWeight: "800", color: colors.primary },
+  macroRow: { flexDirection: "row", gap: 8 },
+  macroChip: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: "center" },
+  macroVal: { fontWeight: "800", fontSize: 14 },
+  macroLabel: { fontSize: 10, fontWeight: "600", marginTop: 2 },
+  drinkCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 14,
+    padding: 14,
+  },
+  drinkOver: { fontSize: 11, fontWeight: "700", color: colors.primary, textTransform: "uppercase" },
+  filterRow: { paddingHorizontal: 16, gap: 8, paddingVertical: 14 },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  filterChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterText: { color: colors.muted, fontWeight: "600", fontSize: 13 },
+  filterTextOn: { color: "#fff" },
+  mealCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 10,
+  },
+  mealIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mealTop: { flexDirection: "row", justifyContent: "space-between" },
+  mealOver: { fontSize: 11, fontWeight: "700", color: colors.primary, textTransform: "uppercase" },
+  mealTime: { fontSize: 11, color: colors.muted },
+  mealTitle: { fontWeight: "700", color: colors.text, marginTop: 2, fontSize: 15 },
+  mealMetaLine: { color: colors.muted, fontSize: 12, marginTop: 4 },
+  regionChip: { color: colors.muted, fontSize: 11, marginTop: 4 },
+  recipeBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  recipeLabel: { fontWeight: "700", color: colors.text, fontSize: 12 },
+  chev: { color: colors.muted, fontSize: 18, marginLeft: 6, marginTop: 4 },
   stepRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   stepChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   stepOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  stepLocked: { opacity: 0.45 },
   stepText: { fontSize: 11, color: colors.muted, fontWeight: "600" },
   stepTextOn: { color: colors.primary },
+  stepTextLocked: { color: colors.muted },
   card: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
   label: { color: colors.muted, fontSize: 12, fontWeight: "600", marginTop: 8, marginBottom: 4 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, color: colors.text },
@@ -336,16 +619,22 @@ const styles = StyleSheet.create({
   btn: { flex: 1, backgroundColor: colors.primary, borderRadius: 24, padding: 13, alignItems: "center" },
   btnDisabled: { opacity: 0.4 },
   btnText: { color: "#fff", fontWeight: "700" },
-  btnAlt: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 24, padding: 13, alignItems: "center", marginBottom: 10, backgroundColor: "#fff" },
+  btnAlt: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 24, padding: 13, alignItems: "center", backgroundColor: "#fff" },
   btnAltText: { color: colors.primary, fontWeight: "700" },
   err: { color: colors.red, marginTop: 8 },
-  kcal: { fontWeight: "700", color: colors.text, marginBottom: 8 },
-  recover: { color: colors.amber, marginBottom: 8, fontWeight: "600" },
   cardTitle: { fontWeight: "700", color: colors.text, marginBottom: 8 },
-  mealRow: { marginBottom: 10 },
-  slot: { fontSize: 11, color: colors.primary, fontWeight: "700" },
-  mealName: { color: colors.text, fontWeight: "600" },
-  meta: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  link: { color: colors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 },
-  disclaimer: { color: colors.muted, fontSize: 12, fontStyle: "italic", marginBottom: 20 },
+  meta: { color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 18 },
+  link: { color: colors.primary, fontSize: 12, fontWeight: "700", marginTop: 6 },
+  regenBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 24,
+    padding: 13,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  regenText: { color: colors.primary, fontWeight: "700" },
+  disclaimer: { color: colors.muted, fontSize: 12, fontStyle: "italic", margin: 16, marginBottom: 24 },
 });

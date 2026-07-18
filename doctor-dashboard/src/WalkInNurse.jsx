@@ -56,7 +56,7 @@ export default function WalkInNurse({ onComplete, onClose }) {
     setMessages([]);
     const first = name.trim().split(/\s+/)[0];
     await say(
-      `Hi ${first}, welcome to the clinic. I'm your AI nurse. I'll ask a few short questions so the doctor is ready — this is not a diagnosis. What brings you in today?`,
+      `Hi ${first}, welcome — I'm glad you're here. I'm the clinic AI nurse. I'll ask a few gentle questions so the doctor has what they need. This isn't a diagnosis. What brings you in today?`,
     );
   }
 
