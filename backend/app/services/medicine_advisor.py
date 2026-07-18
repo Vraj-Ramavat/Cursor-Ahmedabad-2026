@@ -1,15 +1,7 @@
-"""Medicine advisor — Clarity_Rx / MediScribe-style pipeline:
+"""Medicine advisor — local formulary first + fuzzy OCR resolve + consult.
 
-1) Vision / local-file OCR of Indian Rx slips
-2) Fuzzy brand resolve against local formulary (OCR typos OK)
-3) Plain-language consult + alternatives
-
-Inspired by:
-- https://github.com/Noob-Developer-Real/Clarity_Rx (Gemini OCR → fuzzy Indian DB)
-- https://github.com/Shriram2005/MediScribe-OCR (aliases + fuzzy drug match)
-- https://github.com/ayushk-codes/Generic-Medicine-Recommendation (local JSON)
-
-Safety: educational only. Never tells patient to start/stop a medicine on their own.
+Clarity_Rx / MediScribe pattern: extract names → fuzzy match Indian brands →
+explain from local JSON (Cursor optional for wording only).
 """
 
 from __future__ import annotations
@@ -38,24 +30,17 @@ DISCLAIMER = (
 _RX_MEDS_PROMPT = """
 You are an Indian clinic prescription reader (handwritten + printed).
 
-Look at the prescription image carefully. Extract EVERY medicine line you can see
-(T. / Tab / Cap / Syp brands like Oprox-CV, Altrose-SP, Breezy, Shipen-D, etc.).
-
-Return ONLY valid JSON (no markdown):
+Extract EVERY medicine on the slip. Return ONLY valid JSON:
 {
   "patient_name": "",
   "age": "",
   "diagnosis_or_notes": "",
   "medicines": [
-    {"name": "brand or generic as written", "dose": "", "frequency": "", "quantity": "", "instructions": ""}
+    {"name": "brand as written", "dose": "", "frequency": "", "quantity": "", "instructions": ""}
   ],
-  "raw_text": "short transcription of Rx body"
+  "raw_text": "short transcription"
 }
-
-Rules:
-- Prefer brand spellings as written; if unclear, give your best guess.
-- Do NOT invent medicines that are not on the slip.
-- Empty string for unknown fields.
+Do NOT invent medicines. Empty string if unknown.
 """.strip()
 
 
@@ -81,11 +66,9 @@ def _all_aliases(med: dict) -> list[str]:
 
 
 def lookup_medicine(query: str, *, threshold: float = 0.58) -> dict | None:
-    """Exact / substring / fuzzy match (Clarity_Rx-style resolver)."""
     q = _norm(query)
     if not q:
         return None
-    # strip common dose noise
     q = re.sub(r"\b\d+\s*(mg|mcg|ml|g)\b", "", q).strip()
     q = re.sub(r"\b(tab|tablet|cap|capsule|syp|syrup|t)\b", "", q).strip()
     if not q:
@@ -104,7 +87,6 @@ def lookup_medicine(query: str, *, threshold: float = 0.58) -> dict | None:
                 score = 0.92
             else:
                 score = _ratio(q, name)
-                # token-level best
                 for qt in q.split():
                     if len(qt) < 3:
                         continue
@@ -123,14 +105,12 @@ def lookup_medicine(query: str, *, threshold: float = 0.58) -> dict | None:
 
 
 def find_medicines_in_blob(text: str, *, threshold: float = 0.72) -> list[dict]:
-    """Scan free text for formulary brands (handles OCR spacing/typos)."""
     blob = _norm(text)
     if not blob:
         return []
     found: list[dict] = []
     seen = set()
     tokens = blob.split()
-    # windows of 1–3 tokens
     windows = set(tokens)
     for i in range(len(tokens)):
         for n in (2, 3):
@@ -158,32 +138,6 @@ def find_medicines_in_blob(text: str, *, threshold: float = 0.72) -> list[dict]:
     return found
 
 
-def _openfda_hint(name: str) -> dict | None:
-    try:
-        with httpx.Client(timeout=4.0) as client:
-            for field in ("openfda.brand_name", "openfda.generic_name"):
-                res = client.get(
-                    "https://api.fda.gov/drug/label.json",
-                    params={"search": f'{field}:"{name}"', "limit": 1},
-                )
-                if res.status_code != 200:
-                    continue
-                results = res.json().get("results") or []
-                if not results:
-                    continue
-                r0 = results[0]
-                openfda = r0.get("openfda") or {}
-                return {
-                    "source": "openFDA",
-                    "brand": (openfda.get("brand_name") or [None])[0],
-                    "generic": (openfda.get("generic_name") or [None])[0],
-                    "purpose": (r0.get("purpose") or r0.get("indications_and_usage") or [""])[0][:400],
-                }
-    except Exception as exc:
-        logger.info("openFDA lookup skipped: %s", exc)
-    return None
-
-
 def enrich_card(med: dict, *, external: bool = False) -> dict:
     card = {
         "id": med["id"],
@@ -199,9 +153,24 @@ def enrich_card(med: dict, *, external: bool = False) -> dict:
         "disclaimer": DISCLAIMER,
     }
     if external:
-        hint = _openfda_hint(med["generic_name"].split("+")[0].strip().split()[0])
-        if hint:
-            card["external_hint"] = hint
+        try:
+            stem = med["generic_name"].split("+")[0].strip().split()[0]
+            with httpx.Client(timeout=4.0) as client:
+                res = client.get(
+                    "https://api.fda.gov/drug/label.json",
+                    params={"search": f'openfda.generic_name:"{stem}"', "limit": 1},
+                )
+                if res.status_code == 200:
+                    results = res.json().get("results") or []
+                    if results:
+                        openfda = results[0].get("openfda") or {}
+                        card["external_hint"] = {
+                            "source": "openFDA",
+                            "brand": (openfda.get("brand_name") or [None])[0],
+                            "generic": (openfda.get("generic_name") or [None])[0],
+                        }
+        except Exception as exc:
+            logger.info("openFDA skipped: %s", exc)
     return card
 
 
@@ -216,28 +185,23 @@ def _parse_rx_json(raw: str) -> dict | None:
     except json.JSONDecodeError:
         pass
     m = re.search(r"\{[\s\S]*\}", text)
-    if m:
-        try:
-            data = json.loads(m.group(0))
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            return None
-    return None
+    if not m:
+        return None
+    try:
+        data = json.loads(m.group(0))
+        return data if isinstance(data, dict) else None
+    except json.JSONDecodeError:
+        return None
 
 
 def _vision_extract_medicines(image_bytes: bytes, mime_type: str) -> dict:
-    """Dedicated Rx medicine extract (Clarity_Rx step 1)."""
     out = {"medicines": [], "raw_text": "", "source": None, "patient_bits": {}}
     if not image_bytes:
         return out
 
-    # Pass A: vision attachment
     raw = prompt_with_image(_RX_MEDS_PROMPT, image_bytes, mime_type, timeout_s=90.0)
     data = _parse_rx_json(raw) if raw else None
 
-    # Pass B: local file path — local Cursor agents can open files even if
-    # image attachments fail (common failure mode).
     if not data and cursor_keys():
         suffix = ".png" if "png" in (mime_type or "") else ".jpg"
         try:
@@ -245,9 +209,8 @@ def _vision_extract_medicines(image_bytes: bytes, mime_type: str) -> dict:
                 path = Path(td) / f"prescription{suffix}"
                 path.write_bytes(image_bytes)
                 file_prompt = (
-                    f"{_RX_MEDS_PROMPT}\n\n"
-                    f"The prescription image is saved at this absolute path:\n{path}\n"
-                    "Open/read that image file, then return the JSON."
+                    f"{_RX_MEDS_PROMPT}\n\nImage path:\n{path}\n"
+                    "Open that image file and return the JSON."
                 )
                 raw2 = prompt_text(file_prompt, timeout_s=100.0)
                 data = _parse_rx_json(raw2) if raw2 else None
@@ -259,9 +222,8 @@ def _vision_extract_medicines(image_bytes: bytes, mime_type: str) -> dict:
 
     if data:
         out["source"] = out["source"] or "cursor_vision"
-        meds = data.get("medicines") or []
         names = []
-        for m in meds:
+        for m in data.get("medicines") or []:
             if isinstance(m, dict):
                 name = str(m.get("name") or m.get("medicine") or m.get("drug") or "").strip()
                 if name:
@@ -284,13 +246,10 @@ def _vision_extract_medicines(image_bytes: bytes, mime_type: str) -> dict:
 def _lines_from_ocr_fields(fields: list) -> list[str]:
     lines = []
     for f in fields:
-        name = getattr(f, "name", None) or (f.get("name") if isinstance(f, dict) else "")
-        value = getattr(f, "value", None) or (f.get("value") if isinstance(f, dict) else "")
-        name = str(name).lower()
-        value = str(value).strip()
+        name = str(getattr(f, "name", None) or (f.get("name") if isinstance(f, dict) else "")).lower()
+        value = str(getattr(f, "value", None) or (f.get("value") if isinstance(f, dict) else "")).strip()
         if not value:
             continue
-        # Take almost everything — handwritten OCR key names vary a lot
         if any(
             k in name
             for k in (
@@ -325,7 +284,6 @@ def _extract_med_phrases(text_lines: list[str]) -> list[str]:
             re.I,
         ):
             phrases.append(m.group(1).strip())
-        # bare brand-ish tokens
         if 3 <= len(line) <= 60 and re.search(r"[A-Za-z]", line):
             cleaned = re.sub(r"\d+\s*mg.*", "", line, flags=re.I).strip(" -.")
             if cleaned:
@@ -356,9 +314,39 @@ def _cards_from_phrases(phrases: list[str]) -> tuple[list[dict], list[str]]:
     return medicines, unmatched
 
 
+def _local_explain(med: dict, *, want_alt: bool = False) -> str:
+    card = enrich_card(med)
+    brand = card["matched_name"]
+    uses = ", ".join(card["uses"][:3])
+    sides = ", ".join(card["common_side_effects"][:3])
+    alts = "; ".join(f"{a['name']} ({a['reason']})" for a in card["alternatives"])
+    parts = [
+        f"{brand} is {card['generic_name']} — {card['class']}.",
+        f"Commonly used for: {uses}.",
+        f"Usually taken: {card['how_to_take']}",
+        f"Common side effects: {sides}.",
+    ]
+    if want_alt:
+        parts.append(
+            "If you prefer not to take this, do not stop on your own — ask your doctor. "
+            f"Options they may discuss: {alts}."
+        )
+    else:
+        parts.append(f"Alternatives a doctor may discuss: {alts}.")
+    parts.append(DISCLAIMER)
+    return " ".join(parts)
+
+
 def analyze_prescription_text(text: str) -> dict:
     lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    # Also treat commas / "and" as separators when user pastes a single line
+    if len(lines) <= 1 and text:
+        blob = text.replace(",", "\n").replace(" and ", "\n")
+        lines = [ln.strip() for ln in blob.splitlines() if ln.strip()]
     phrases = _extract_med_phrases(lines)
+    # Single bare name paste: "Oprox-CV"
+    if not phrases and text and len(text.strip()) < 48:
+        phrases = [text.strip()]
     medicines, unmatched = _cards_from_phrases(phrases)
     for med in find_medicines_in_blob(text or ""):
         if not any(m["id"] == med["id"] for m in medicines):
@@ -385,7 +373,6 @@ def analyze_prescription_image(image_bytes: bytes, mime_type: str = "image/jpeg"
     ocr_fields: list[dict] = []
     extract_source = None
 
-    # 1) Dedicated medicine vision extract (best for handwritten Indian Rx)
     vision = _vision_extract_medicines(image_bytes, mime_type)
     phrases.extend(vision.get("medicines") or [])
     if vision.get("raw_text"):
@@ -395,7 +382,6 @@ def analyze_prescription_image(image_bytes: bytes, mime_type: str = "image/jpeg"
         extract_source = vision["source"]
         ocr_status = "extracted"
 
-    # 2) Existing document OCR field extractor as backup
     ocr = extract(image_bytes, mime_type, "prescription")
     ocr_fields = [
         {"name": f.name, "value": f.value, "confidence": f.confidence} for f in ocr.fields
@@ -422,8 +408,6 @@ def analyze_prescription_image(image_bytes: bytes, mime_type: str = "image/jpeg"
             patient_bits.setdefault(name, value)
 
     medicines, unmatched = _cards_from_phrases(phrases)
-
-    # 3) Fuzzy scan full blob for formulary brands
     blob = " ".join(
         phrases
         + lines
@@ -436,30 +420,12 @@ def analyze_prescription_image(image_bytes: bytes, mime_type: str = "image/jpeg"
             card["from_prescription_text"] = med.get("_hit") or med["brand_names"][0]
             medicines.append(card)
 
-    # 4) LLM name resolver when we have unmatched OCR words
-    if not medicines and unmatched and cursor_keys():
-        resolve_prompt = (
-            "These OCR guesses came from an Indian prescription. "
-            "Map each to a likely Indian brand/generic if obvious. "
-            "Return ONLY JSON array of strings (corrected names). "
-            f"Guesses: {unmatched[:10]}"
-        )
-        resolved = prompt_text(resolve_prompt, timeout_s=25.0)
-        if resolved:
-            try:
-                arr = json.loads(re.search(r"\[[\s\S]*\]", resolved).group(0))  # type: ignore[union-attr]
-                more, _ = _cards_from_phrases([str(x) for x in arr])
-                medicines.extend(more)
-            except Exception:
-                more, _ = _cards_from_phrases(_extract_med_phrases([resolved]))
-                medicines.extend(more)
-
     if not medicines and not cursor_keys():
-        summary = "OCR is offline (no Cursor API key). Paste medicine names below, or set CURSOR_API_KEY."
+        summary = "OCR is offline (no Cursor API key). Paste medicine names below."
     elif not medicines:
         summary = (
-            "Could not read medicines from this photo yet — try a brighter/closer shot, "
-            "or paste the names (e.g. Oprox-CV, Altrose-SP, Breezy, Shipen-D)."
+            "Could not read medicines from this photo yet — try a clearer shot, "
+            "or paste names (e.g. Oprox-CV, Altrose-SP, Breezy, Shipen-D)."
         )
     else:
         summary = f"Found {len(medicines)} medicine(s) we can explain from your slip."
@@ -494,6 +460,7 @@ def alternatives_for(query: str) -> dict:
 
 
 def consult(question: str, context_medicines: list[str] | None = None) -> dict:
+    """Always answer from local formulary first — never depend on Cursor for the reply."""
     q = (question or "").strip()
     if not q:
         return {
@@ -501,65 +468,76 @@ def consult(question: str, context_medicines: list[str] | None = None) -> dict:
             "disclaimer": DISCLAIMER,
         }
 
-    name_guess = None
-    q_low = q.lower()
-    for med in _load_db()["medicines"]:
-        for b in _all_aliases(med):
-            if b and b.lower() in q_low:
-                name_guess = b
-                break
-        if name_guess:
-            break
-    if not name_guess:
-        alt_match = re.search(
-            r"(?:don'?t want|avoid|alternative for|instead of|replace|switch)\s+(?:to\s+)?([A-Za-z0-9\- ]{2,40})",
+    want_alt = bool(
+        re.search(
+            r"nahi|naa|don'?t want|avoid|alternative|replace|switch|instead",
             q,
             re.I,
         )
-        if alt_match:
-            name_guess = alt_match.group(1).strip()
-
-    local = lookup_medicine(name_guess) if name_guess else None
-    facts = ""
-    if local:
-        card = enrich_card(local)
-        facts = (
-            f"Matched: {card['generic_name']} ({card['class']}). "
-            f"Uses: {', '.join(card['uses'][:3])}. "
-            f"Alternatives (doctor must approve): "
-            + "; ".join(f"{a['name']} — {a['reason']}" for a in card["alternatives"])
-        )
-
-    ctx = ", ".join(context_medicines or [])
-    prompt = (
-        "You are a careful clinic medicine educator in India. "
-        "Use ONLY the facts given. Do NOT invent drug names or doses. "
-        "If the patient does not want a medicine, explain they must ask their doctor "
-        "before changing anything, then list the provided alternatives as discussion options. "
-        "Keep 4–6 short sentences, warm and clear. End with the disclaimer.\n\n"
-        f"Patient question: {q}\n"
-        f"Prescription context medicines: {ctx or 'none'}\n"
-        f"Local formulary facts: {facts or 'none matched'}\n"
-        f"Disclaimer to include: {DISCLAIMER}"
     )
-    text = prompt_text(prompt, timeout_s=20.0)
-    if not text:
-        if local:
-            alts = enrich_card(local)["alternatives"]
-            alt_txt = "; ".join(a["name"] for a in alts)
-            text = (
-                f"About {local['generic_name']}: it is used for {', '.join(local['uses'][:2])}. "
-                f"If you prefer not to take this brand, do not stop it yourself — ask your doctor. "
-                f"Possible options they may discuss: {alt_txt}. {DISCLAIMER}"
-            )
-        else:
-            text = (
-                "I can explain medicines from your prescription or by name. "
-                "Tell me which tablet (e.g. Oprox-CV) you want to understand or replace. "
-                f"{DISCLAIMER}"
-            )
+
+    # 1) Match every formulary brand mentioned in the question / paste
+    matched: list[dict] = []
+    seen = set()
+    q_low = q.lower()
+    for med in _load_db()["medicines"]:
+        for b in _all_aliases(med):
+            if b and b.lower() in q_low and med["id"] not in seen:
+                seen.add(med["id"])
+                matched.append(med)
+                break
+
+    # 2) Fuzzy / analyze-text path for pasted lists
+    if not matched:
+        analyzed = analyze_prescription_text(q)
+        for card in analyzed.get("medicines") or []:
+            hit = lookup_medicine(card.get("from_prescription_text") or card.get("matched_name") or "")
+            if hit and hit["id"] not in seen:
+                seen.add(hit["id"])
+                matched.append(hit)
+
+    # 3) Context medicines from current Rx result
+    for name in context_medicines or []:
+        hit = lookup_medicine(name)
+        if hit and hit["id"] not in seen and (
+            want_alt or _norm(name) in _norm(q) or len(matched) == 0
+        ):
+            # Only pull context if question is vague or mentions it
+            if len(matched) == 0 or _norm(name) in _norm(q):
+                seen.add(hit["id"])
+                matched.append(hit)
+
+    if not matched:
+        # Last try: lookup whole question as one name
+        hit = lookup_medicine(q)
+        if hit:
+            matched = [hit]
+
+    if matched:
+        # Prefer local deterministic answer (reliable). Optional Cursor polish.
+        local_answer = "\n\n".join(_local_explain(m, want_alt=want_alt) for m in matched[:4])
+        facts = " | ".join(
+            f"{m.get('brand_names', [''])[0]}: {m['generic_name']}" for m in matched[:4]
+        )
+        polished = prompt_text(
+            "Rewrite this medicine education answer in 4–8 short warm sentences. "
+            "Keep all drug facts. Do not invent medicines. Keep the disclaimer.\n\n"
+            f"Question: {q}\nFacts: {facts}\nDraft:\n{local_answer}",
+            timeout_s=12.0,
+        )
+        return {
+            "answer": polished or local_answer,
+            "matched": enrich_card(matched[0]),
+            "medicines": [enrich_card(m) for m in matched],
+            "disclaimer": DISCLAIMER,
+        }
+
     return {
-        "answer": text,
-        "matched": enrich_card(local) if local else None,
+        "answer": (
+            "I could not match that name in our formulary yet. "
+            "Try a brand like Oprox-CV, Altrose-SP, Breezy, Shipen-D, or Pantoprazole. "
+            f"{DISCLAIMER}"
+        ),
+        "matched": None,
         "disclaimer": DISCLAIMER,
     }

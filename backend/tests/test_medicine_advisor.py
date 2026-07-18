@@ -54,3 +54,10 @@ def test_consult_dont_want():
     assert "disclaimer" in res
     assert res["answer"]
     assert res.get("matched") is not None
+    assert "Cefpodoxime" in res["answer"] or "alternative" in res["answer"].lower()
+
+
+def test_consult_paste_name():
+    res = consult("Oprox-CV")
+    assert res.get("matched") is not None
+    assert "Cefpodoxime" in (res["answer"] or "")

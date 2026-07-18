@@ -18,6 +18,14 @@ import {
 } from "../api";
 import { glassCard, colors, radius, spacing, palette } from "../theme";
 
+function looksLikeMedList(text) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  if (/\n|,|;|\bT\.|\bTab\b|\bCap\b/i.test(t)) return true;
+  // single short brand-like token
+  return t.length <= 40 && !/\?|kya|nahi|what|side/i.test(t);
+}
+
 export default function MedicinesScreen() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -33,32 +41,37 @@ export default function MedicinesScreen() {
     [result],
   );
 
+  function applyResult(data) {
+    setResult(data);
+    const first = data?.medicines?.[0]?.id;
+    setExpanded(first ? { [first]: true } : {});
+  }
+
   async function pick(fromCamera) {
     setErr("");
-    const perm = fromCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert("Permission needed", "Allow camera/photos to read your prescription.");
-      return;
-    }
-    const resultPick = fromCamera
-      ? await ImagePicker.launchCameraAsync({ quality: 0.85 })
-      : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.85,
-        });
-    if (resultPick.canceled || !resultPick.assets?.[0]) return;
-    const asset = resultPick.assets[0];
-    setBusy(true);
     try {
+      const perm = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission needed", "Allow camera/photos to read your prescription.");
+        return;
+      }
+      const resultPick = fromCamera
+        ? await ImagePicker.launchCameraAsync({ quality: 0.85 })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.85,
+          });
+      if (resultPick.canceled || !resultPick.assets?.[0]) return;
+      const asset = resultPick.assets[0];
+      setBusy(true);
       const data = await analyzePrescription({
         uri: asset.uri,
         name: asset.fileName || `rx-${Date.now()}.jpg`,
         mimeType: asset.mimeType || "image/jpeg",
       });
-      setResult(data);
-      setExpanded({});
+      applyResult(data);
     } catch (e) {
       setErr(e.message || "Could not read prescription");
     } finally {
@@ -72,8 +85,10 @@ export default function MedicinesScreen() {
     setBusy(true);
     try {
       const data = await analyzePrescriptionText(paste.trim());
-      setResult(data);
-      setExpanded({});
+      applyResult(data);
+      if (!data?.medicines?.length) {
+        setErr(data?.summary || "No medicines matched — check the spelling and try again.");
+      }
     } catch (e) {
       setErr(e.message || "Could not parse medicines");
     } finally {
@@ -89,7 +104,35 @@ export default function MedicinesScreen() {
     setChat((c) => [...c, { role: "user", text: q }]);
     setQuestion("");
     try {
+      // Pasted brand list in Ask box → explain via analyze, then consult summary
+      if (looksLikeMedList(q) && !preset) {
+        const data = await analyzePrescriptionText(q);
+        if (data?.medicines?.length) {
+          applyResult(data);
+          const lines = data.medicines.map(
+            (m) =>
+              `${m.from_prescription_text || m.matched_name}: ${m.generic_name} — ${(m.uses || []).slice(0, 2).join("; ")}`,
+          );
+          setChat((c) => [
+            ...c,
+            {
+              role: "sakhi",
+              text: `${data.summary}\n\n${lines.join("\n")}\n\nTap a medicine card above for details. ${data.disclaimer || ""}`,
+            },
+          ]);
+          return;
+        }
+      }
+
       const res = await consultMedicine(q, contextMeds);
+      if (res?.medicines?.length) {
+        applyResult({
+          summary: `Found ${res.medicines.length} medicine(s) we can explain.`,
+          disclaimer: res.disclaimer,
+          medicines: res.medicines,
+          ocr_status: "text",
+        });
+      }
       setChat((c) => [...c, { role: "sakhi", text: res.answer || "…" }]);
     } catch (e) {
       setChat((c) => [
@@ -105,14 +148,16 @@ export default function MedicinesScreen() {
     setExpanded((e) => ({ ...e, [id]: !e[id] }));
   }
 
+  const medicines = Array.isArray(result?.medicines) ? result.medicines : [];
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>Medicine advisor</Text>
         <Text style={styles.title}>Your medicines</Text>
         <Text style={styles.sub}>
-          Scan a prescription slip, then ask what each tablet is for — or what to discuss if you
-          prefer not to take one.
+          Paste medicine names (or scan a slip), then open a card for uses, side effects, and
+          alternatives to discuss with your doctor.
         </Text>
 
         <View style={styles.row}>
@@ -124,11 +169,11 @@ export default function MedicinesScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>Or paste medicine names</Text>
+        <Text style={styles.label}>Paste medicine names</Text>
         <TextInput
           style={styles.input}
           multiline
-          placeholder={"T. Oprox-CV 200mg\nT. Altrose-SP\nT. Breezy\nT. Shipen-D 40mg"}
+          placeholder={"Oprox-CV\nAltrose-SP\nBreezy\nShipen-D"}
           placeholderTextColor={colors.muted}
           value={paste}
           onChangeText={setPaste}
@@ -140,7 +185,7 @@ export default function MedicinesScreen() {
         {busy && (
           <View style={styles.busyRow}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.busyText}>Reading your slip…</Text>
+            <Text style={styles.busyText}>Looking up medicines…</Text>
           </View>
         )}
         {!!err && <Text style={styles.err}>{err}</Text>}
@@ -148,36 +193,33 @@ export default function MedicinesScreen() {
         {result && (
           <View style={styles.block}>
             <Text style={styles.summary}>{result.summary}</Text>
-            {result.ocr_status && result.ocr_status !== "extracted" && result.ocr_status !== "text" && (
-              <Text style={styles.warn}>
-                Photo reader status: {result.ocr_status}
-                {result.extract_source ? ` (${result.extract_source})` : ""}. You can still paste names below.
-              </Text>
-            )}
             <Text style={styles.disclaimer}>{result.disclaimer}</Text>
 
-            {(result.medicines || []).map((m) => {
-              const open = expanded[m.id];
+            {medicines.map((m, idx) => {
+              const id = m.id || `med-${idx}`;
+              const open = !!expanded[id];
               return (
                 <TouchableOpacity
-                  key={m.id}
+                  key={id}
                   style={styles.medCard}
-                  onPress={() => toggle(m.id)}
+                  onPress={() => toggle(id)}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.medBrand}>
-                    {m.from_prescription_text || m.matched_name}
+                    {m.from_prescription_text || m.matched_name || "Medicine"}
                   </Text>
-                  <Text style={styles.medGeneric}>{m.generic_name}</Text>
-                  <Text style={styles.medClass}>{m.class}</Text>
+                  <Text style={styles.medGeneric}>{m.generic_name || ""}</Text>
+                  <Text style={styles.medClass}>{m.class || ""}</Text>
                   {open && (
                     <View style={styles.medBody}>
                       <Text style={styles.medH}>Uses</Text>
-                      <Text style={styles.medP}>{(m.uses || []).join(" · ")}</Text>
+                      <Text style={styles.medP}>{(m.uses || []).join(" · ") || "—"}</Text>
                       <Text style={styles.medH}>How usually taken</Text>
-                      <Text style={styles.medP}>{m.how_to_take}</Text>
+                      <Text style={styles.medP}>{m.how_to_take || "—"}</Text>
                       <Text style={styles.medH}>Common side effects</Text>
-                      <Text style={styles.medP}>{(m.common_side_effects || []).join(" · ")}</Text>
+                      <Text style={styles.medP}>
+                        {(m.common_side_effects || []).join(" · ") || "—"}
+                      </Text>
                       <Text style={styles.medH}>Alternatives to discuss with doctor</Text>
                       {(m.alternatives || []).map((a, i) => (
                         <Text key={i} style={styles.alt}>
@@ -192,7 +234,7 @@ export default function MedicinesScreen() {
                           )
                         }
                       >
-                        <Text style={styles.chipText}>I don’t want this — suggest options</Text>
+                        <Text style={styles.chipText}>I don't want this — suggest options</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -203,7 +245,7 @@ export default function MedicinesScreen() {
 
             {(result.unmatched_phrases || []).length > 0 && (
               <Text style={styles.unmatched}>
-                Couldn’t match: {result.unmatched_phrases.join(", ")}. Ask below by name.
+                Couldn't match: {result.unmatched_phrases.join(", ")}. Ask below by name.
               </Text>
             )}
           </View>
@@ -211,7 +253,7 @@ export default function MedicinesScreen() {
 
         <Text style={styles.section}>Ask Sakhi</Text>
         <Text style={styles.subSmall}>
-          e.g. “Shipen-D kya hai?” or “Oprox-CV nahi lena — alternative?”
+          e.g. "Shipen-D kya hai?" or "Oprox-CV nahi lena — alternative?"
         </Text>
         {chat.map((m, i) => (
           <View
@@ -320,7 +362,7 @@ const styles = StyleSheet.create({
   },
   medGeneric: { color: colors.primaryDark, marginTop: 2, fontSize: 14 },
   medClass: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  medBody: { marginTop: spacing.sm, gap: 2 },
+  medBody: { marginTop: spacing.sm },
   medH: {
     marginTop: 8,
     fontSize: 11,
@@ -342,12 +384,6 @@ const styles = StyleSheet.create({
   chipText: { color: palette.charcoal, fontWeight: "600", fontSize: 13 },
   tapHint: { marginTop: 8, fontSize: 11, color: colors.muted },
   unmatched: { color: colors.amber, fontSize: 13, lineHeight: 18, marginTop: 4 },
-  warn: {
-    color: palette.terracotta,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: spacing.sm,
-  },
   section: {
     marginTop: spacing.lg,
     fontFamily: "Georgia",
