@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, doctor, documents, intake, meals, notes, queue, voice
+from app.api import auth, doctor, documents, intake, meals, medicines, notes, queue, voice
 from app.core.database import init_db
 from app.core.logging import correlation_id_var, setup_logging
 from app.schemas import HealthResponse
@@ -86,6 +86,7 @@ app.include_router(doctor.router)
 app.include_router(voice.router)
 app.include_router(auth.router)
 app.include_router(meals.router)
+app.include_router(medicines.router)
 
 
 @app.get("/health", response_model=HealthResponse)

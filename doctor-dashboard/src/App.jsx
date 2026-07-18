@@ -112,8 +112,8 @@ export default function App() {
     <div className="layout">
       <header className="app-bar">
         <div className="app-bar-brand">
-          <div className="app-logo" aria-hidden="true">CP</div>
-          <h1 className="app-title">Clinic Prep · Doctor</h1>
+          <div className="app-logo" aria-hidden="true">✿</div>
+          <h1 className="app-title">Sehat Sakhi · Doctor</h1>
         </div>
         <div className="app-bar-actions">
           <span className={`chip ${connected ? "conn-live" : "conn-poll"}`}>

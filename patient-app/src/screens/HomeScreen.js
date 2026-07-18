@@ -9,14 +9,14 @@ import {
   View,
 } from "react-native";
 import { getQueueStatus } from "../api";
-import { cardShadow, colors, radius, sevColor, sevText, spacing } from "../theme";
+import { glassCard, colors, radius, sevColor, sevText, spacing, palette } from "../theme";
 
 export default function HomeScreen({ account, visit, onNavigate }) {
   const [position, setPosition] = useState(null);
   const [live, setLive] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const firstName = account?.name?.split(" ")[0] || "there";
+  const firstName = account?.name?.split(" ")[0] || "Friend";
   const hasActiveVisit = visit?.sessionId && !visit?.complete;
 
   useEffect(() => {
@@ -49,8 +49,9 @@ export default function HomeScreen({ account, visit, onNavigate }) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.wrap}>
+        <Text style={styles.eyebrow}>Daylight · Sehat Sakhi</Text>
         <Text style={styles.greeting}>Hello, {firstName}</Text>
-        <Text style={styles.sub}>Welcome to your clinic visit portal</Text>
+        <Text style={styles.sub}>The garden is open and calm</Text>
 
         {visit?.sessionId ? (
           <View style={styles.card}>
@@ -91,23 +92,19 @@ export default function HomeScreen({ account, visit, onNavigate }) {
         <Text style={styles.section}>Quick actions</Text>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.action} onPress={() => onNavigate("visit")}>
-            <Text style={styles.actionIcon}>🏥</Text>
+            <Text style={styles.actionIcon}>✦</Text>
             <Text style={styles.actionLabel}>Start visit</Text>
             <Text style={styles.actionSub}>Begin intake chat</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.action, !visit?.sessionId && styles.actionDisabled]}
-            onPress={() => visit?.sessionId && onNavigate("documents")}
-            disabled={!visit?.sessionId}
-          >
-            <Text style={styles.actionIcon}>📄</Text>
-            <Text style={styles.actionLabel}>Scan Rx</Text>
-            <Text style={styles.actionSub}>Upload prescription</Text>
+          <TouchableOpacity style={styles.action} onPress={() => onNavigate("medicines")}>
+            <Text style={styles.actionIcon}>✚</Text>
+            <Text style={styles.actionLabel}>Medicine advisor</Text>
+            <Text style={styles.actionSub}>Explain Rx · ask alternatives</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.action} onPress={() => onNavigate("meals")}>
-            <Text style={styles.actionIcon}>🥗</Text>
+            <Text style={styles.actionIcon}>◎</Text>
             <Text style={styles.actionLabel}>Meal plan</Text>
             <Text style={styles.actionSub}>Personalized meals</Text>
           </TouchableOpacity>
@@ -122,48 +119,70 @@ export default function HomeScreen({ account, visit, onNavigate }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: "transparent" },
   wrap: { padding: spacing.lg, paddingBottom: spacing.xl },
-  greeting: { fontSize: 28, fontWeight: "700", color: colors.text },
-  sub: { color: colors.muted, marginTop: 4, marginBottom: spacing.lg },
+  eyebrow: {
+    fontSize: 10,
+    letterSpacing: 2.2,
+    textTransform: "uppercase",
+    color: colors.muted,
+    fontWeight: "500",
+    marginBottom: 6,
+  },
+  greeting: {
+    fontFamily: "Georgia",
+    fontSize: 32,
+    fontWeight: "600",
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  sub: { color: colors.muted, marginTop: 4, marginBottom: spacing.lg, fontSize: 14 },
   section: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
     color: colors.muted,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    ...glassCard,
     padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...cardShadow,
   },
-  emptyCard: { borderStyle: "dashed" },
+  emptyCard: { borderStyle: "dashed", borderColor: palette.sageLight },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
-  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  cardTitle: {
+    fontFamily: "Georgia",
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
   pillText: { color: "#fff", fontWeight: "700", fontSize: 11 },
   complaint: { color: colors.text, marginTop: spacing.sm, fontSize: 15, lineHeight: 22 },
-  queueMain: { fontSize: 20, fontWeight: "700", color: colors.text, marginTop: spacing.md },
+  queueMain: {
+    fontFamily: "Georgia",
+    fontSize: 22,
+    fontWeight: "600",
+    color: colors.text,
+    marginTop: spacing.md,
+  },
   queueSub: { fontSize: 13, marginTop: 4, lineHeight: 18 },
   paused: { color: colors.amber, fontSize: 12, marginTop: spacing.sm },
   hint: { color: colors.muted, marginTop: spacing.sm, lineHeight: 20 },
   actions: { gap: spacing.sm },
   action: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    ...glassCard,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...cardShadow,
   },
   actionDisabled: { opacity: 0.5 },
-  actionIcon: { fontSize: 24, marginBottom: 4 },
-  actionLabel: { fontSize: 16, fontWeight: "700", color: colors.text },
+  actionIcon: { fontSize: 20, marginBottom: 4, color: colors.primary },
+  actionLabel: {
+    fontFamily: "Georgia",
+    fontSize: 17,
+    fontWeight: "600",
+    color: colors.text,
+  },
   actionSub: { color: colors.muted, fontSize: 13, marginTop: 2 },
 });

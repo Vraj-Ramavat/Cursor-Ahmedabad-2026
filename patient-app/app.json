@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Hospital Visit Prep",
-    "slug": "hospital-visit-prep",
+    "name": "Sehat Sakhi",
+    "slug": "sehat-sakhi",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",

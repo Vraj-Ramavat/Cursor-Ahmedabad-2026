@@ -221,3 +221,43 @@ export async function transcribeVoice(blob, filename = "speech.webm") {
   form.append("file", blob, filename);
   return req("/api/voice/transcribe", { method: "POST", body: form, form: true, retries: 0 });
 }
+
+export async function analyzePrescription(file) {
+  const form = new FormData();
+  const part = await toUploadPart(file);
+  if (part.blob) {
+    form.append("file", part.blob, part.name);
+  } else {
+    form.append("file", part.native);
+  }
+  return req("/api/medicines/analyze", {
+    method: "POST",
+    body: form,
+    form: true,
+    auth: true,
+    retries: 1,
+  });
+}
+
+export async function analyzePrescriptionText(text) {
+  return req("/api/medicines/analyze-text", {
+    method: "POST",
+    body: { text },
+    auth: true,
+  });
+}
+
+export async function consultMedicine(question, contextMedicines = []) {
+  return req("/api/medicines/consult", {
+    method: "POST",
+    body: {
+      question,
+      context_medicines: contextMedicines,
+    },
+    auth: true,
+  });
+}
+
+export async function medicineAlternatives(q) {
+  return req(`/api/medicines/alternatives?q=${encodeURIComponent(q)}`, { auth: true });
+}

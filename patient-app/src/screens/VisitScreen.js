@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { answerIntake, getQueueStatus, myVisits, startIntake } from "../api";
-import { cardShadow, colors, radius, sevColor, sevText, spacing } from "../theme";
+import { glassCard, colors, radius, sevColor, sevText, spacing, palette } from "../theme";
 
 const ACKS = [
   "Thank you — that helps.",
@@ -328,7 +328,7 @@ export default function VisitScreen({ account, visit, onVisitChange }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: "transparent" },
   flex: { flex: 1, padding: spacing.md },
   header: {
     flexDirection: "row",
@@ -337,33 +337,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  title: { fontSize: 22, fontWeight: "700", color: colors.text },
-  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  title: {
+    fontFamily: "Georgia",
+    fontSize: 26,
+    fontWeight: "600",
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
   pillText: { color: "#fff", fontWeight: "700", fontSize: 11 },
   statusCard: {
-    backgroundColor: colors.surface,
+    ...glassCard,
     marginHorizontal: spacing.lg,
     marginTop: spacing.sm,
-    borderRadius: radius.lg,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...cardShadow,
   },
-  statusMain: { fontSize: 18, fontWeight: "700", color: colors.text },
+  statusMain: {
+    fontFamily: "Georgia",
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+  },
   statusSub: { fontSize: 13, marginTop: 4 },
   paused: { color: colors.amber, fontSize: 12, marginTop: 6 },
   chatCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...glassCard,
     overflow: "hidden",
-    ...cardShadow,
   },
   idle: { padding: spacing.lg, paddingBottom: spacing.xl },
-  idleTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
+  idleTitle: {
+    fontFamily: "Georgia",
+    fontSize: 22,
+    fontWeight: "600",
+    color: colors.text,
+  },
   idleSub: { color: colors.muted, marginTop: spacing.sm, lineHeight: 22 },
   primaryBtn: {
     backgroundColor: colors.primary,
@@ -375,11 +383,11 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   histTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
     color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
   histCard: {
@@ -388,7 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    backgroundColor: colors.bg,
+    backgroundColor: "rgba(255,255,255,0.55)",
   },
   histRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   histDate: { fontWeight: "700", color: colors.text },
@@ -400,14 +408,22 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: "center",
   },
-  secondaryBtnText: { color: colors.primary, fontWeight: "600" },
+  secondaryBtnText: { color: colors.primaryDark, fontWeight: "600" },
   chatScroll: { flex: 1 },
   chatContent: { padding: spacing.md },
-  bubble: { maxWidth: "85%", borderRadius: radius.md, padding: 10, marginBottom: 8 },
-  aiBubble: { backgroundColor: colors.primarySoft, alignSelf: "flex-start" },
-  userBubble: { backgroundColor: colors.primary, alignSelf: "flex-end" },
+  bubble: { maxWidth: "85%", borderRadius: radius.md, padding: 12, marginBottom: 8 },
+  aiBubble: {
+    backgroundColor: "rgba(107, 143, 113, 0.12)",
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(107, 143, 113, 0.2)",
+  },
+  userBubble: {
+    backgroundColor: palette.sage,
+    alignSelf: "flex-end",
+  },
   bubbleWho: { color: colors.muted, fontSize: 10, fontWeight: "600", marginBottom: 2 },
-  bubbleWhoLight: { color: "rgba(255,255,255,0.8)" },
+  bubbleWhoLight: { color: "rgba(255,255,255,0.85)" },
   bubbleText: { color: colors.text, fontSize: 15, lineHeight: 21 },
   bubbleTextLight: { color: "#fff" },
   inputRow: {
@@ -420,20 +436,20 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: "rgba(245, 212, 222, 0.7)",
     borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     color: colors.text,
     maxHeight: 100,
-    backgroundColor: colors.bg,
+    backgroundColor: "rgba(255,255,255,0.7)",
   },
   sendBtn: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
     paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingVertical: 12,
   },
   sendDisabled: { opacity: 0.6 },
   sendText: { color: "#fff", fontWeight: "700" },

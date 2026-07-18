@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import LivingBackground from "../components/LivingBackground";
+import { colors, glassCard, palette, radius, spacing } from "../theme";
 import { login, register, setToken } from "../api";
 
 export default function AuthScreen({ onAuthed }) {
@@ -49,13 +50,15 @@ export default function AuthScreen({ onAuthed }) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <LivingBackground />
       <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>+</Text>
+          <View style={styles.lotus}>
+            <Text style={styles.lotusPetal}>✿</Text>
           </View>
-          <Text style={styles.title}>Clinic Prep</Text>
-          <Text style={styles.sub}>Your visit portal — register once, prepare every time.</Text>
+          <Text style={styles.eyebrow}>Daylight · Sehat Sakhi</Text>
+          <Text style={styles.title}>Sehat Sakhi</Text>
+          <Text style={styles.sub}>Your trusted friend on the wellness journey</Text>
         </View>
 
         <View style={styles.card}>
@@ -84,7 +87,7 @@ export default function AuthScreen({ onAuthed }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Asha Patel"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={`${palette.charcoalSoft}80`}
               />
               <Text style={styles.label}>Age</Text>
               <TextInput
@@ -93,7 +96,7 @@ export default function AuthScreen({ onAuthed }) {
                 onChangeText={setAge}
                 keyboardType="numeric"
                 placeholder="32"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={`${palette.charcoalSoft}80`}
               />
               <Text style={styles.label}>Gender</Text>
               <TextInput
@@ -101,7 +104,7 @@ export default function AuthScreen({ onAuthed }) {
                 value={gender}
                 onChangeText={setGender}
                 placeholder="female / male / other"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={`${palette.charcoalSoft}80`}
               />
               <Text style={styles.label}>ABHA ID (optional)</Text>
               <TextInput
@@ -109,7 +112,7 @@ export default function AuthScreen({ onAuthed }) {
                 value={abhaId}
                 onChangeText={setAbhaId}
                 placeholder="14-digit health ID"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={`${palette.charcoalSoft}80`}
               />
             </>
           )}
@@ -121,14 +124,14 @@ export default function AuthScreen({ onAuthed }) {
             onChangeText={setPhone}
             keyboardType="phone-pad"
             placeholder="9876543210"
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={`${palette.charcoalSoft}80`}
           />
 
           {!!err && <Text style={styles.err}>{err}</Text>}
 
           <TouchableOpacity style={styles.btn} onPress={submit} disabled={busy}>
             {busy ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <Text style={styles.btnText}>{mode === "login" ? "Continue" : "Create account"}</Text>
             )}
@@ -141,65 +144,94 @@ export default function AuthScreen({ onAuthed }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  wrap: { flexGrow: 1, backgroundColor: colors.bg, padding: spacing.lg, justifyContent: "center" },
+  wrap: {
+    flexGrow: 1,
+    padding: spacing.lg,
+    justifyContent: "center",
+    zIndex: 1,
+  },
   brand: { alignItems: "center", marginBottom: spacing.lg },
-  logo: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primary,
+  lotus: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: palette.lotusSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
-  },
-  logoText: { color: "#fff", fontWeight: "800", fontSize: 28 },
-  title: { fontSize: 28, fontWeight: "700", color: colors.text },
-  sub: { color: colors.muted, marginTop: spacing.sm, textAlign: "center", lineHeight: 20 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
+    borderColor: "rgba(232, 168, 184, 0.5)",
+  },
+  lotusPetal: { fontSize: 32, color: palette.lotusDeep },
+  eyebrow: {
+    fontSize: 10,
+    letterSpacing: 2.2,
+    textTransform: "uppercase",
+    color: colors.muted,
+    fontWeight: "500",
+  },
+  title: {
+    fontFamily: "Georgia",
+    fontSize: 34,
+    fontWeight: "600",
+    color: colors.text,
+    marginTop: 6,
+    letterSpacing: -0.5,
+  },
+  sub: {
+    color: colors.muted,
+    marginTop: spacing.sm,
+    textAlign: "center",
+    lineHeight: 22,
+    fontSize: 14,
+    maxWidth: 280,
+  },
+  card: {
+    ...glassCard,
+    padding: spacing.lg,
   },
   tabs: {
     flexDirection: "row",
-    backgroundColor: colors.bg,
+    backgroundColor: "rgba(107, 143, 113, 0.08)",
     borderRadius: radius.md,
     padding: 4,
     marginBottom: spacing.md,
   },
   tab: { flex: 1, paddingVertical: 10, borderRadius: radius.sm, alignItems: "center" },
-  tabOn: { backgroundColor: colors.surface, elevation: 1 },
+  tabOn: {
+    backgroundColor: colors.surfaceSolid,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 1,
+  },
   tabText: { color: colors.muted, fontWeight: "600" },
-  tabTextOn: { color: colors.primary },
+  tabTextOn: { color: colors.primaryDark },
   label: {
     color: colors.muted,
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 6,
-    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 8,
+    marginTop: 12,
   },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: "rgba(245, 212, 222, 0.7)",
     borderRadius: radius.md,
-    padding: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     color: colors.text,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
     fontSize: 16,
+    minHeight: 52,
   },
   btn: {
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: "center",
     marginTop: spacing.lg,
   },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  btnText: { color: colors.onPrimary, fontWeight: "700", fontSize: 16 },
   err: { color: colors.red, marginTop: 10, fontSize: 13 },
 });

@@ -1,0 +1,124 @@
+{
+  "version": "1.0.0",
+  "disclaimer": "Educational wellness information only — not a prescription, diagnosis, or instruction to start/stop medicines. Always confirm with your doctor or pharmacist.",
+  "medicines": [
+    {
+      "id": "oprox_cv",
+      "brand_names": ["oprox-cv", "oprox cv", "oproxcv", "cefpodoxime clavulanate"],
+      "generic_name": "Cefpodoxime Proxetil + Clavulanic Acid",
+      "class": "Antibiotic (cephalosporin + beta-lactamase inhibitor)",
+      "uses": ["Bacterial infections of throat/chest/sinus", "Often used for fever with cold when bacterial infection is suspected"],
+      "how_to_take": "Usually twice daily (1-0-1). Complete the full course unless doctor says otherwise.",
+      "common_side_effects": ["Nausea", "Diarrhea", "Stomach upset", "Allergy/rash"],
+      "avoid_if": ["Known penicillin/cephalosporin allergy — ask doctor first"],
+      "alternatives": [
+        {"name": "Cefixime (as prescribed)", "reason": "Same antibiotic family — only if doctor switches"},
+        {"name": "Amoxicillin-Clavulanate (as prescribed)", "reason": "Common alternative antibiotic class for respiratory infections"}
+      ],
+      "tags": ["antibiotic", "fever", "throat"]
+    },
+    {
+      "id": "altrose_sp",
+      "brand_names": ["altrose-sp", "altrose sp", "altrose", "aceclofenac paracetamol serratiopeptidase"],
+      "generic_name": "Aceclofenac + Paracetamol + Serratiopeptidase",
+      "class": "Pain / inflammation relief (NSAID combo)",
+      "uses": ["Body pain", "Throat irritation discomfort", "Fever-related aches", "Inflammation"],
+      "how_to_take": "Often 1-1-1 or 1-0-1 after food. Do not exceed dose on the slip.",
+      "common_side_effects": ["Stomach irritation", "Acidity", "Dizziness", "Rare kidney strain with long use"],
+      "avoid_if": ["Active stomach ulcer", "Severe kidney disease", "Late pregnancy — ask doctor"],
+      "alternatives": [
+        {"name": "Paracetamol alone (as prescribed)", "reason": "Gentler on stomach for fever/pain if NSAID not wanted"},
+        {"name": "Ibuprofen (as prescribed)", "reason": "Another NSAID option — only with doctor advice"}
+      ],
+      "tags": ["pain", "fever", "inflammation"]
+    },
+    {
+      "id": "breezy",
+      "brand_names": ["breezy", "breezy tablet"],
+      "generic_name": "Commonly an antihistamine / cold-relief brand (confirm exact salt on pack)",
+      "class": "Cold / allergy symptom relief",
+      "uses": ["Cold", "Runny nose", "Throat irritation from allergy/cold"],
+      "how_to_take": "Often once at night (0-0-1) as on many slips — follow your prescription.",
+      "common_side_effects": ["Drowsiness", "Dry mouth"],
+      "avoid_if": ["If you need to drive/operate machines and feel sleepy"],
+      "alternatives": [
+        {"name": "Cetirizine (as prescribed)", "reason": "Common antihistamine alternative"},
+        {"name": "Loratadine (as prescribed)", "reason": "Less-sedating antihistamine option"}
+      ],
+      "tags": ["cold", "allergy"]
+    },
+    {
+      "id": "shipen_d",
+      "brand_names": ["shipen-d", "shipen d", "shipen", "pantoprazole", "pan 40", "pantocid"],
+      "generic_name": "Pantoprazole (often 40 mg)",
+      "class": "Acid reducer (PPI)",
+      "uses": ["Protect stomach while on painkillers", "Acidity", "Before food (B/F) on many prescriptions"],
+      "how_to_take": "Usually once or twice daily before food (B/F).",
+      "common_side_effects": ["Headache", "Mild stomach upset", "Long-term use needs doctor review"],
+      "avoid_if": ["Discuss with doctor if on certain HIV/antifungal medicines"],
+      "alternatives": [
+        {"name": "Omeprazole (as prescribed)", "reason": "Similar acid-reducer class"},
+        {"name": "Rabeprazole (as prescribed)", "reason": "Another PPI alternative"}
+      ],
+      "tags": ["acidity", "stomach", "ppi"]
+    },
+    {
+      "id": "paracetamol",
+      "brand_names": ["paracetamol", "crocin", "dolo", "dolo 650", "calpol", "pcm"],
+      "generic_name": "Paracetamol (Acetaminophen)",
+      "class": "Fever / mild pain relief",
+      "uses": ["Fever", "Headache", "Body ache"],
+      "how_to_take": "Commonly every 6–8 hours as needed; do not exceed daily max — ask pharmacist.",
+      "common_side_effects": ["Rare liver risk if overdose or with alcohol"],
+      "avoid_if": ["Severe liver disease — ask doctor"],
+      "alternatives": [
+        {"name": "Ibuprofen (as prescribed)", "reason": "If inflammation pain dominates and stomach is fine"}
+      ],
+      "tags": ["fever", "pain"]
+    },
+    {
+      "id": "amoxicillin_clav",
+      "brand_names": ["augmentin", "moxikind-cv", "clavam", "amoxicillin clavulanate"],
+      "generic_name": "Amoxicillin + Clavulanic Acid",
+      "class": "Antibiotic",
+      "uses": ["Throat", "Chest", "Sinus bacterial infections"],
+      "how_to_take": "Usually 2–3 times daily with food as prescribed.",
+      "common_side_effects": ["Diarrhea", "Rash", "Nausea"],
+      "avoid_if": ["Penicillin allergy"],
+      "alternatives": [
+        {"name": "Cefpodoxime combinations (as prescribed)", "reason": "Alternative antibiotic if doctor prefers"},
+        {"name": "Azithromycin (as prescribed)", "reason": "Different class — doctor decides"}
+      ],
+      "tags": ["antibiotic"]
+    },
+    {
+      "id": "cetirizine",
+      "brand_names": ["cetirizine", "cetzine", "okacet", "alerid"],
+      "generic_name": "Cetirizine",
+      "class": "Antihistamine",
+      "uses": ["Allergy", "Cold symptoms", "Itching"],
+      "how_to_take": "Often once daily, preferably at night.",
+      "common_side_effects": ["Sleepiness", "Dry mouth"],
+      "avoid_if": ["Caution if operating machinery when drowsy"],
+      "alternatives": [
+        {"name": "Loratadine (as prescribed)", "reason": "Usually less sedating"},
+        {"name": "Fexofenadine (as prescribed)", "reason": "Non-drowsy option"}
+      ],
+      "tags": ["allergy", "cold"]
+    },
+    {
+      "id": "metformin",
+      "brand_names": ["metformin", "glycomet", "glucophage"],
+      "generic_name": "Metformin",
+      "class": "Diabetes medicine",
+      "uses": ["Type 2 diabetes blood sugar control"],
+      "how_to_take": "With meals as prescribed — never change dose yourself.",
+      "common_side_effects": ["Stomach upset", "Diarrhea initially"],
+      "avoid_if": ["Severe kidney issues — doctor supervised"],
+      "alternatives": [
+        {"name": "Discuss with your doctor only", "reason": "Diabetes switches need lab review — no self-substitution"}
+      ],
+      "tags": ["diabetes"]
+    }
+  ]
+}

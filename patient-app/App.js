@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -11,17 +12,20 @@ import AuthScreen from "./src/screens/AuthScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import VisitScreen from "./src/screens/VisitScreen";
 import DocumentsScreen from "./src/screens/DocumentsScreen";
+import MedicinesScreen from "./src/screens/MedicinesScreen";
 import MealsScreen from "./src/screens/MealsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import LivingBackground from "./src/components/LivingBackground";
 import { clearToken, getToken, me, onUnauthorized, setToken } from "./src/api";
-import { colors, spacing } from "./src/theme";
+import { colors, radius, spacing } from "./src/theme";
 
 const TABS = [
-  { key: "home", label: "Home", icon: "🏠" },
-  { key: "visit", label: "Visit", icon: "💬" },
-  { key: "documents", label: "Docs", icon: "📄" },
-  { key: "meals", label: "Meals", icon: "🥗" },
-  { key: "profile", label: "Profile", icon: "👤" },
+  { key: "home", label: "Home", icon: "⌂" },
+  { key: "visit", label: "Visit", icon: "✦" },
+  { key: "documents", label: "Docs", icon: "☰" },
+  { key: "medicines", label: "Meds", icon: "✚" },
+  { key: "meals", label: "Meals", icon: "◎" },
+  { key: "profile", label: "You", icon: "◌" },
 ];
 
 export default function App() {
@@ -36,6 +40,20 @@ export default function App() {
     setVisit(null);
     setTab("home");
   }
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const id = "sakhi-fonts";
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href =
+          "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap";
+        document.head.appendChild(link);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     onUnauthorized(() => {
@@ -64,7 +82,7 @@ export default function App() {
   function handleAuthed(acc) {
     if (acc?.token) setToken(acc.token);
     setAccount(acc);
-    setTab("visit"); // AI receptionist first after login/register
+    setTab("visit");
   }
 
   function navigate(key) {
@@ -74,7 +92,9 @@ export default function App() {
   if (booting) {
     return (
       <View style={styles.boot}>
+        <LivingBackground />
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.bootLabel}>Sehat Sakhi</Text>
       </View>
     );
   }
@@ -94,7 +114,9 @@ export default function App() {
           <VisitScreen account={account} visit={visit} onVisitChange={setVisit} />
         );
       case "documents":
-        return <DocumentsScreen sessionId={sessionId} />;
+        return <DocumentsScreen sessionId={sessionId} account={account} />;
+      case "medicines":
+        return <MedicinesScreen />;
       case "meals":
         return (
           <MealsScreen
@@ -118,22 +140,27 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <LivingBackground />
       <View style={styles.content}>{renderScreen()}</View>
-      <View style={styles.tabBar}>
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <TouchableOpacity
-              key={t.key}
-              style={styles.tabItem}
-              onPress={() => setTab(t.key)}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.tabIcon, active && styles.tabIconActive]}>{t.icon}</Text>
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.tabBarWrap}>
+        <View style={styles.tabBar}>
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={styles.tabItem}
+                onPress={() => setTab(t.key)}
+                accessibilityRole="button"
+              >
+                <View style={[styles.tabIconWrap, active && styles.tabIconWrapActive]}>
+                  <Text style={[styles.tabIcon, active && styles.tabIconActive]}>{t.icon}</Text>
+                </View>
+                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -141,19 +168,56 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  boot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
-  content: { flex: 1 },
+  boot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg,
+    gap: 12,
+  },
+  bootLabel: {
+    fontFamily: "Georgia",
+    fontSize: 22,
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
+  content: { flex: 1, zIndex: 1 },
+  tabBarWrap: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    paddingTop: 4,
+    zIndex: 2,
+  },
   tabBar: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.sm,
+    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 6,
   },
   tabItem: { flex: 1, alignItems: "center", paddingVertical: 4 },
-  tabIcon: { fontSize: 20, opacity: 0.5 },
-  tabIconActive: { opacity: 1 },
-  tabLabel: { fontSize: 11, color: colors.muted, marginTop: 2, fontWeight: "500" },
-  tabLabelActive: { color: colors.primary, fontWeight: "700" },
+  tabIconWrap: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tabIconWrapActive: {
+    backgroundColor: "rgba(232, 168, 184, 0.22)",
+  },
+  tabIcon: { fontSize: 16, color: colors.muted, opacity: 0.7 },
+  tabIconActive: { color: colors.primaryDark, opacity: 1 },
+  tabLabel: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  tabLabelActive: { color: colors.primaryDark, fontWeight: "700" },
 });
