@@ -1,0 +1,46 @@
+:root {
+  --red: #d92d20;
+  --amber: #dc9a00;
+  --green: #099250;
+  --bg: #0f1420;
+  --panel: #1a2130;
+  --text: #e7ecf3;
+  --muted: #8a94a6;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+.layout { max-width: 1100px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; gap: 12px; }
+h1 { font-size: 20px; margin: 8px 0; }
+.conn { font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+.conn.on { background: rgba(9,146,80,.2); color: var(--green); }
+.conn.off { background: rgba(217,45,32,.15); color: var(--red); }
+.banner.paused { background: rgba(220,154,0,.15); color: var(--amber);
+  border: 1px solid var(--amber); padding: 8px 12px; border-radius: 8px; margin: 8px 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+section { background: var(--panel); border-radius: 12px; padding: 14px; }
+h2 { font-size: 15px; margin: 4px 0 12px; }
+h3 { font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
+.muted { color: var(--muted); font-size: 13px; }
+.qrow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: #141a26; border: 1px solid #232c3d; color: var(--text);
+  padding: 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+.qrow.sel { outline: 2px solid #3b82f6; }
+.qrow.sev-red { border-left: 4px solid var(--red); }
+.qrow.sev-amber { border-left: 4px solid var(--amber); }
+.qrow.sev-green { border-left: 4px solid var(--green); }
+.rank { font-weight: 700; color: var(--muted); }
+.pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.pill.sev-red { background: rgba(217,45,32,.2); color: var(--red); }
+.pill.sev-amber { background: rgba(220,154,0,.2); color: var(--amber); }
+.pill.sev-green { background: rgba(9,146,80,.2); color: var(--green); }
+.score, .waited { font-size: 12px; color: var(--muted); }
+.escalated { font-size: 11px; color: var(--amber); margin-left: auto; }
+.pending { color: var(--amber); font-style: italic; }
+.note { background: #141a26; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+textarea { width: 100%; background: #0d121c; color: var(--text);
+  border: 1px solid #232c3d; border-radius: 6px; padding: 8px; font-family: inherit; }
+.note-actions { margin-top: 8px; }
+button { background: #3b82f6; color: white; border: none; padding: 8px 14px;
+  border-radius: 6px; cursor: pointer; font-weight: 600; }
+button:hover { filter: brightness(1.1); }

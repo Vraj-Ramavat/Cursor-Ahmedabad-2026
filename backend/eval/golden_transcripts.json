@@ -1,0 +1,61 @@
+{
+  "description": "Golden intake transcripts with expected deterministic outputs. The regression harness replays these through the triage engine + local ICD-10 lookup to catch drift in the safety-critical path and coverage gaps in the local table.",
+  "cases": [
+    {
+      "id": "chest_pain_cardiac",
+      "chief_complaint": "chest pain",
+      "answers": ["started an hour ago", "tightness", "radiating to arm", "shortness of breath and cold sweat", "worse when I move"],
+      "expected_severity": "red",
+      "expected_local_hits": ["chest pain", "shortness of breath"]
+    },
+    {
+      "id": "benign_cold",
+      "chief_complaint": "runny nose",
+      "answers": ["a couple days", "mild", "no", "no", "same at rest"],
+      "expected_severity": "green",
+      "expected_local_hits": ["runny nose"]
+    },
+    {
+      "id": "high_fever",
+      "chief_complaint": "fever",
+      "answers": ["since yesterday", "high fever around 103", "some chills", "no rash"],
+      "expected_severity": "amber",
+      "expected_local_hits": ["fever", "chills"]
+    },
+    {
+      "id": "stroke_signs",
+      "chief_complaint": "sudden weakness",
+      "answers": ["10 minutes ago", "one side weakness", "slurred speech", "no chest pain"],
+      "expected_severity": "red",
+      "expected_local_hits": []
+    },
+    {
+      "id": "thunderclap_headache",
+      "chief_complaint": "headache",
+      "answers": ["came on suddenly", "worst headache of my life", "stiff neck", "some vomiting"],
+      "expected_severity": "red",
+      "expected_local_hits": ["headache"]
+    },
+    {
+      "id": "moderate_abdominal",
+      "chief_complaint": "abdominal pain",
+      "answers": ["since morning", "severe abdominal pain", "no vomiting blood", "no fever"],
+      "expected_severity": "amber",
+      "expected_local_hits": ["abdominal pain"]
+    },
+    {
+      "id": "dehydration",
+      "chief_complaint": "vomiting",
+      "answers": ["all day", "cannot keep fluids down", "feeling dizzy", "not urinating much"],
+      "expected_severity": "amber",
+      "expected_local_hits": ["vomiting"]
+    },
+    {
+      "id": "unmapped_phrase",
+      "chief_complaint": "tingling",
+      "answers": ["my left elbow tingles when it rains"],
+      "expected_severity": "green",
+      "expected_local_hits": []
+    }
+  ]
+}

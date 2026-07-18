@@ -1,0 +1,192 @@
+{
+  "version": "1.1.0",
+  "description": "Deterministic follow-up decision trees per chief complaint. Presented one question at a time in a conversational tone; a question is skipped when an earlier answer already implies it. The 'default' tree handles any complaint without a dedicated tree so every patient gets a real intake conversation.",
+  "trees": {
+    "chest pain": {
+      "start": "onset",
+      "nodes": {
+        "onset": {
+          "question": "I'm sorry you're dealing with chest pain. When did it start \u2014 just now, earlier today, or over the last few days?",
+          "key": "onset",
+          "next": "character"
+        },
+        "character": {
+          "question": "Thanks. How would you describe it \u2014 a pressure or tightness, a sharp stab, or a burning feeling?",
+          "key": "character",
+          "next": "radiation",
+          "implies": {
+            "pressure": {"red_flag_hint": "chest pressure"},
+            "tightness": {"red_flag_hint": "chest tightness"}
+          }
+        },
+        "radiation": {
+          "question": "Does the pain spread anywhere \u2014 to your arm, jaw, neck, or back \u2014 or does it stay in one spot?",
+          "key": "radiation",
+          "next": "associated",
+          "implies": {
+            "arm": {"red_flag_hint": "radiating to arm"},
+            "jaw": {"red_flag_hint": "radiating to jaw"}
+          }
+        },
+        "associated": {
+          "question": "Got it. Along with the chest pain, are you having any shortness of breath, sweating, or nausea right now?",
+          "key": "associated",
+          "next": "exertion",
+          "implies": {
+            "breath": {"red_flag_hint": "shortness of breath"},
+            "sweat": {"red_flag_hint": "sweating"},
+            "nausea": {"red_flag_hint": "nausea"}
+          }
+        },
+        "exertion": {
+          "question": "Last question \u2014 does it get worse when you move or exert yourself, or is it about the same at rest?",
+          "key": "exertion",
+          "next": null
+        }
+      }
+    },
+    "headache": {
+      "start": "onset",
+      "nodes": {
+        "onset": {
+          "question": "Sorry to hear about the headache. Did it come on suddenly, or has it built up gradually?",
+          "key": "onset",
+          "next": "severity",
+          "implies": {
+            "sudden": {"red_flag_hint": "sudden severe headache"}
+          }
+        },
+        "severity": {
+          "question": "How bad is it compared to headaches you've had before \u2014 similar, worse, or the worst you've ever had?",
+          "key": "severity",
+          "next": "associated",
+          "implies": {
+            "worst": {"red_flag_hint": "worst headache"}
+          }
+        },
+        "associated": {
+          "question": "Are you noticing anything along with it \u2014 a stiff neck, vomiting, fever, or changes in your vision?",
+          "key": "associated",
+          "next": "duration",
+          "implies": {
+            "stiff": {"red_flag_hint": "stiff neck"},
+            "vomit": {"red_flag_hint": "vomiting"},
+            "vision": {"red_flag_hint": "vision changes"},
+            "fever": {"red_flag_hint": "headache with fever"}
+          }
+        },
+        "duration": {
+          "question": "And how long has this one been going on \u2014 hours, or days?",
+          "key": "duration",
+          "next": null,
+          "implies": {
+            "days": {"red_flag_hint": "persistent headache"}
+          }
+        }
+      }
+    },
+    "fever": {
+      "start": "duration",
+      "nodes": {
+        "duration": {
+          "question": "Let's get you sorted. How long have you had the fever \u2014 since today, or a few days now?",
+          "key": "duration",
+          "next": "temperature",
+          "implies": {
+            "days": {"red_flag_hint": "fever for days"}
+          }
+        },
+        "temperature": {
+          "question": "Have you been able to measure it? Roughly how high has it gone?",
+          "key": "temperature",
+          "next": "associated",
+          "implies": {
+            "103": {"red_flag_hint": "fever 103"},
+            "104": {"red_flag_hint": "fever 104"},
+            "high": {"red_flag_hint": "high fever"}
+          }
+        },
+        "associated": {
+          "question": "Along with the fever, any chills, body ache, rash, or trouble keeping fluids down?",
+          "key": "associated",
+          "next": "hydration",
+          "implies": {
+            "fluids": {"red_flag_hint": "cannot keep fluids down"}
+          }
+        },
+        "hydration": {
+          "question": "Last one \u2014 are you drinking water normally and urinating as usual?",
+          "key": "hydration",
+          "next": null,
+          "implies": {
+            "not urinating": {"red_flag_hint": "not urinating"}
+          }
+        }
+      }
+    },
+    "abdominal pain": {
+      "start": "location",
+      "nodes": {
+        "location": {
+          "question": "Sorry you're in pain. Where in your belly is it \u2014 upper, lower, right side, left side, or all over?",
+          "key": "location",
+          "next": "severity",
+          "implies": {
+            "right lower": {"red_flag_hint": "right lower abdomen pain"}
+          }
+        },
+        "severity": {
+          "question": "How intense is it \u2014 a dull ache you can work through, or severe enough that it stops you?",
+          "key": "severity",
+          "next": "associated",
+          "implies": {
+            "severe": {"red_flag_hint": "severe abdominal pain"}
+          }
+        },
+        "associated": {
+          "question": "Any vomiting, blood in your stool, or a fever along with it?",
+          "key": "associated",
+          "next": "eating",
+          "implies": {
+            "blood": {"red_flag_hint": "blood in stool"},
+            "vomiting blood": {"red_flag_hint": "vomiting blood"}
+          }
+        },
+        "eating": {
+          "question": "And is it connected to eating \u2014 worse after meals, or the same either way?",
+          "key": "eating",
+          "next": null
+        }
+      }
+    },
+    "default": {
+      "start": "duration",
+      "nodes": {
+        "duration": {
+          "question": "Thanks for telling me. How long has this been bothering you \u2014 hours, days, or longer?",
+          "key": "duration",
+          "next": "severity"
+        },
+        "severity": {
+          "question": "How much is it affecting you day to day \u2014 mild and manageable, or bad enough to stop your normal routine?",
+          "key": "severity",
+          "next": "associated"
+        },
+        "associated": {
+          "question": "Is anything else going on alongside it \u2014 fever, dizziness, breathlessness, or anything that feels new or unusual?",
+          "key": "associated",
+          "next": "history",
+          "implies": {
+            "breath": {"red_flag_hint": "shortness of breath"},
+            "dizz": {"red_flag_hint": "dizzy when standing"}
+          }
+        },
+        "history": {
+          "question": "Last one \u2014 any ongoing conditions or regular medications the doctor should know about?",
+          "key": "history",
+          "next": null
+        }
+      }
+    }
+  }
+}

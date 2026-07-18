@@ -1,0 +1,81 @@
+{
+  "version": "1.0.0",
+  "description": "Deterministic red-flag triage rules. The engine can only ESCALATE severity based on these rules; it can never downgrade. Ordered by clinical urgency.",
+  "severity_order": ["green", "amber", "red"],
+  "rules": [
+    {
+      "id": "chest_pain_cardiac_red",
+      "severity": "red",
+      "description": "Chest pain with cardiac red-flag features suggests possible acute coronary syndrome.",
+      "match": {
+        "any_keywords": ["chest pain", "chest pressure", "chest tightness", "crushing chest"],
+        "with_any_keywords": ["radiating to arm", "radiating to jaw", "shortness of breath", "sweating", "cold sweat", "nausea"]
+      }
+    },
+    {
+      "id": "stroke_symptoms_red",
+      "severity": "red",
+      "description": "FAST stroke indicators require immediate escalation.",
+      "match": {
+        "any_keywords": ["face drooping", "slurred speech", "sudden weakness", "one side weakness", "arm weakness", "sudden confusion", "sudden vision loss"]
+      }
+    },
+    {
+      "id": "breathing_difficulty_red",
+      "severity": "red",
+      "description": "Severe respiratory distress.",
+      "match": {
+        "any_keywords": ["can't breathe", "cannot breathe", "gasping", "blue lips", "choking"]
+      }
+    },
+    {
+      "id": "anaphylaxis_red",
+      "severity": "red",
+      "description": "Signs of anaphylaxis.",
+      "match": {
+        "any_keywords": ["throat swelling", "tongue swelling", "hives all over", "trouble swallowing after"]
+      }
+    },
+    {
+      "id": "thunderclap_headache_red",
+      "severity": "red",
+      "description": "Sudden severe headache may indicate subarachnoid hemorrhage.",
+      "match": {
+        "any_keywords": ["worst headache", "thunderclap", "sudden severe headache"],
+        "with_any_keywords": ["stiff neck", "vomiting", "vision changes", "fainting"]
+      }
+    },
+    {
+      "id": "high_fever_amber",
+      "severity": "amber",
+      "description": "High or persistent fever needs timely review.",
+      "match": {
+        "any_keywords": ["high fever", "fever 103", "fever 104", "persistent fever", "fever for days"]
+      }
+    },
+    {
+      "id": "abdominal_pain_severe_amber",
+      "severity": "amber",
+      "description": "Severe or localized abdominal pain.",
+      "match": {
+        "any_keywords": ["severe abdominal pain", "right lower abdomen pain", "rigid abdomen", "blood in stool", "vomiting blood"]
+      }
+    },
+    {
+      "id": "moderate_headache_amber",
+      "severity": "amber",
+      "description": "Headache with concerning but non-emergent features.",
+      "match": {
+        "any_keywords": ["persistent headache", "headache with fever", "headache with nausea"]
+      }
+    },
+    {
+      "id": "dehydration_amber",
+      "severity": "amber",
+      "description": "Signs of dehydration.",
+      "match": {
+        "any_keywords": ["not urinating", "dizzy when standing", "cannot keep fluids down"]
+      }
+    }
+  ]
+}
