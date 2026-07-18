@@ -20,21 +20,23 @@ LOW_CONFIDENCE_THRESHOLD = 0.7
 _PRESCRIPTION_PROMPT = """
 You are a medical document OCR extractor for an Indian clinic.
 
-The image may be printed or HANDWRITTEN (doctor cursive, abbreviations).
+The image may be printed or HANDWRITTEN (doctor cursive, abbreviations like T. / Tab).
 
 Extract EVERY readable field as a JSON array ONLY:
 [{"name":"...","value":"...","confidence":0.0}]
 
 Use keys when present: patient_name, age, gender, date, doctor_name, clinic_name,
 diagnosis_or_notes, medication, dosage, frequency, duration, instructions,
-vitals, investigations_advised, follow_up.
+vitals, investigations_advised, follow_up, raw_ocr_text.
 
 Rules:
-1. Keep abbreviations (Tab, Cap, BD, TDS, SOS, HS).
-2. Each medicine = separate object name="medication".
-3. Unclear words: best guess with confidence <= 0.55.
-4. Do NOT invent medicines. Do NOT diagnose.
-5. Return ONLY a valid JSON array — no markdown, no commentary.
+1. Keep abbreviations (Tab, Cap, BD, TDS, SOS, HS, B/F).
+2. Each medicine = separate object with name="medication" and value=brand as written
+   (e.g. "Oprox-CV 200mg", "Altrose-SP", "Breezy", "Shipen-D 40mg").
+3. Also include one object name="raw_ocr_text" with a short full transcription of the Rx body.
+4. Unclear words: best guess with confidence <= 0.55.
+5. Do NOT invent medicines. Do NOT diagnose.
+6. Return ONLY a valid JSON array — no markdown, no commentary.
 """.strip()
 
 _IMAGING_PROMPT = """

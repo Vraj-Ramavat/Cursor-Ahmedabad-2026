@@ -148,6 +148,12 @@ export default function MedicinesScreen() {
         {result && (
           <View style={styles.block}>
             <Text style={styles.summary}>{result.summary}</Text>
+            {result.ocr_status && result.ocr_status !== "extracted" && result.ocr_status !== "text" && (
+              <Text style={styles.warn}>
+                Photo reader status: {result.ocr_status}
+                {result.extract_source ? ` (${result.extract_source})` : ""}. You can still paste names below.
+              </Text>
+            )}
             <Text style={styles.disclaimer}>{result.disclaimer}</Text>
 
             {(result.medicines || []).map((m) => {
@@ -336,6 +342,12 @@ const styles = StyleSheet.create({
   chipText: { color: palette.charcoal, fontWeight: "600", fontSize: 13 },
   tapHint: { marginTop: 8, fontSize: 11, color: colors.muted },
   unmatched: { color: colors.amber, fontSize: 13, lineHeight: 18, marginTop: 4 },
+  warn: {
+    color: palette.terracotta,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+  },
   section: {
     marginTop: spacing.lg,
     fontFamily: "Georgia",

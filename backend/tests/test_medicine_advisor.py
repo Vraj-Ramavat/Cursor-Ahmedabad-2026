@@ -4,6 +4,7 @@ from app.services.medicine_advisor import (
     alternatives_for,
     analyze_prescription_text,
     consult,
+    find_medicines_in_blob,
     lookup_medicine,
 )
 
@@ -21,6 +22,14 @@ def test_lookup_oprox():
     hit = lookup_medicine("Oprox-CV")
     assert hit is not None
     assert "Cefpodoxime" in hit["generic_name"]
+
+
+def test_fuzzy_ocr_typos():
+    assert lookup_medicine("Oprok CV") is not None
+    assert lookup_medicine("Altroze SP") is not None
+    assert lookup_medicine("Shipan D 40") is not None
+    ids = {m["id"] for m in find_medicines_in_blob("oprok cv altroze breezi shipan d 40")}
+    assert {"oprox_cv", "altrose_sp", "breezy", "shipen_d"} <= ids
 
 
 def test_analyze_sample_prescription_text():

@@ -5,6 +5,7 @@
     {
       "id": "oprox_cv",
       "brand_names": ["oprox-cv", "oprox cv", "oproxcv", "cefpodoxime clavulanate"],
+      "ocr_aliases": ["oprox", "oprok", "oproc", "aprox", "oprox cv 200", "cefpodoxime"],
       "generic_name": "Cefpodoxime Proxetil + Clavulanic Acid",
       "class": "Antibiotic (cephalosporin + beta-lactamase inhibitor)",
       "uses": ["Bacterial infections of throat/chest/sinus", "Often used for fever with cold when bacterial infection is suspected"],
@@ -20,6 +21,7 @@
     {
       "id": "altrose_sp",
       "brand_names": ["altrose-sp", "altrose sp", "altrose", "aceclofenac paracetamol serratiopeptidase"],
+      "ocr_aliases": ["altroze", "altros", "altro sp", "aceclofenac", "serratiopeptidase"],
       "generic_name": "Aceclofenac + Paracetamol + Serratiopeptidase",
       "class": "Pain / inflammation relief (NSAID combo)",
       "uses": ["Body pain", "Throat irritation discomfort", "Fever-related aches", "Inflammation"],
@@ -35,6 +37,7 @@
     {
       "id": "breezy",
       "brand_names": ["breezy", "breezy tablet"],
+      "ocr_aliases": ["breezi", "breezey", "breezy tab"],
       "generic_name": "Commonly an antihistamine / cold-relief brand (confirm exact salt on pack)",
       "class": "Cold / allergy symptom relief",
       "uses": ["Cold", "Runny nose", "Throat irritation from allergy/cold"],
@@ -50,6 +53,7 @@
     {
       "id": "shipen_d",
       "brand_names": ["shipen-d", "shipen d", "shipen", "pantoprazole", "pan 40", "pantocid"],
+      "ocr_aliases": ["shipan", "shypen", "shipen d 40", "pantop", "pantoprazole 40"],
       "generic_name": "Pantoprazole (often 40 mg)",
       "class": "Acid reducer (PPI)",
       "uses": ["Protect stomach while on painkillers", "Acidity", "Before food (B/F) on many prescriptions"],
