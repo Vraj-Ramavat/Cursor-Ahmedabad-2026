@@ -12,6 +12,9 @@
     ],
     "plugins": [
       "expo-asset"
-    ]
+    ],
+    "experiments": {
+      "baseUrl": "/patient"
+    }
   }
 }

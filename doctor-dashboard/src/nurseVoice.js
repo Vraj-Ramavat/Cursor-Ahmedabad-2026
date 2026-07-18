@@ -6,7 +6,21 @@
  * Pattern inspired by browser TTS + Groq PlayAI Celeste (see groq.com/docs/text-to-speech).
  */
 
-const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+function resolveApiBase() {
+  const fromEnv = import.meta.env.VITE_API_BASE;
+  if (fromEnv !== undefined && fromEnv !== null && String(fromEnv).length > 0) {
+    return String(fromEnv).replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host && host !== "localhost" && host !== "127.0.0.1") {
+      return "";
+    }
+  }
+  return "http://localhost:8000";
+}
+
+const BASE = resolveApiBase();
 
 let audioEl = null;
 

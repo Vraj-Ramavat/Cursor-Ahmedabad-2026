@@ -1,4 +1,19 @@
-export const API_BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
+/** Same-origin on Render; localhost:8000 for local API. */
+function resolveApiBase() {
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE;
+  if (fromEnv !== undefined && fromEnv !== null && String(fromEnv).length > 0) {
+    return String(fromEnv).replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host && host !== "localhost" && host !== "127.0.0.1") {
+      return window.location.origin;
+    }
+  }
+  return "http://localhost:8000";
+}
+
+export const API_BASE = resolveApiBase();
 
 let _token = null;
 let _onUnauthorized = null;

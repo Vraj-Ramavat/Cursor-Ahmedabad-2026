@@ -8,7 +8,10 @@ venv/
 
 # Node
 node_modules/
-dist/
+# Vite/Expo build outs (keep backend/static committed for Render)
+doctor-dashboard/dist/
+patient-app/dist/
+patient-app/web-build/
 .expo/
 *.log
 
